@@ -1,19 +1,17 @@
 ﻿using Ajuna.NetApi;
-using Ajuna.UnityInterface;
-using Dot4GBot.AI;
 using Serilog;
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Dot4GBot
+namespace Ajuna.Automation
 {
     partial class Program
     {
-        private static string _nodeUrl = "ws://127.0.0.1:9944";
-        private static string _ngrokUrl = "ws://a5bc-84-75-48-249.ngrok.io";
-        private static string _mrenclave = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
+        private const string NODE_URL = "ws://127.0.0.1:9944";
+        private const string WORKER_URL = "ws://a5bc-84-75-48-249.ngrok.io";
+        private const string SHARD = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
+        private const string MRENCLAVE = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
 
         private static Random _random = new Random();
 
@@ -58,8 +56,12 @@ namespace Dot4GBot
             var mnemonic = string.Join(' ', Mnemonic.MnemonicFromEntropy(randomBytes, Mnemonic.BIP39Wordlist.English));
             var account = Mnemonic.GetAccountFromMnemonic(mnemonic, "aA1234dd", Ajuna.NetApi.Model.Types.KeyType.Sr25519);
 
+            var nodeClient = new NodeClient(account, NODE_URL);
+            var workerClient = new WorkerClient(account, WORKER_URL, SHARD, MRENCLAVE);
 
-            
+            var client = new Bot(nodeClient, workerClient);
+
+            await client.RunAsync(token);
 
         }
 

@@ -3,7 +3,6 @@ using Ajuna.UnityInterface;
 using Dot4GBot.AI;
 using Serilog;
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 

@@ -1,219 +1,211 @@
 ﻿using Ajuna.NetApi.Model.AjunaCommon;
 using Ajuna.NetApi.Model.Dot4gravity;
-using Ajuna.NetApi.Model.Types.Primitive;
-using Ajuna.NetApiExt.Model.AjunaWorker.Dot4G;
-using Ajuna.UnityInterface;
-using Dot4GBot.AI;
-using System;
+using Serilog;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Ajuna.Automation.Benchmark.Bot
+namespace Ajuna.Automation
 {
 
-
-    internal class Bot
+    public class Bot
     {
-        public enum NodeState
+        private readonly NodeClient _nodeClient;
+        private readonly WorkerClient _workerClient;
+
+        private readonly Dictionary<string, long[]> _tracker;
+        private readonly Stopwatch _stopwatch;
+
+        public Bot(NodeClient nodeClient, WorkerClient workerClient)
         {
-            None,
-            Connect,
-            Faucet,
-        }
+            _nodeClient = nodeClient;
+            _workerClient = workerClient;
 
-        private readonly BotClient _uClient;
-
-
-        public Dictionary<string, long[]> Tracker;
-
-        private Stopwatch stopwatch;
-
-        public Bot(Dot4GClient dot4gClient, IBotAI logic, DisplayType displayType)
-        {
-            _uClient = dot4gClient;
-            _logic = logic;
-            _displayType = displayType;
-
-            Tracker = new Dictionary<string, long[]>();
-            stopwatch = new Stopwatch();
+            _tracker = new Dictionary<string, long[]>();
+            _stopwatch = new Stopwatch();
         }
 
         internal async Task RunAsync(CancellationToken token)
         {
+            var SleepTime = 1000;
 
             NodeState nodeState = NodeState.None;
             WorkerState workerState = WorkerState.None;
 
-            stopwatch.Start();
-
-            int count = 0;
+            _stopwatch.Start();
 
             while (!token.IsCancellationRequested)
             {
-                count++;
-
-                var SleepTime = 1000;
-                Dot4GObj gameBoard = null;
-                U32 runnerId = null;
-
-                nodeState = await GetNodeStateAsync(nodeState);
-
-                switch (nodeState)
-                {
-                    case NodeState.Connect:
-                        _ = await _uClient.ConnectNodeAsync();
-                        break;
-
-                    case NodeState.Faucet:
-                        _ = await _uClient.FaucetAsync();
-                        break;
-
-                    case NodeState.Queue:
-                        _ = await _uClient.QueueAsync();
-                        break;
-
-                    case NodeState.None:
-                        break;
-
-                    case NodeState.Players:
-                        break;
-
-                    case NodeState.Worker:
-                        break;
-
-                    case NodeState.Play:
-                        break;
-                }
+                nodeState = await GetNodeStateAsync(nodeState, token);
+                Log.Information("node state is {state}", nodeState);
+                await DoNodeAsync(nodeState, token);
 
                 if (nodeState == NodeState.Play)
                 {
-                    var balanceWorker = await _uClient.GetBalanceWorkerAsync();
-                    if (balanceWorker is null || balanceWorker.Value < 100)
+                    workerState = await GetWorkerStateAsync(workerState, token);
+                    Log.Information("worker state is {state}", workerState);
+                    await DoWorkerAsync(workerState, token);
+                    if (workerState == WorkerState.Game)
                     {
-                        workerState = ChangeWorkerState(workerState, WorkerState.Faucet);
-                    }
-                    else
-                    {
-                        gameBoard = await _uClient.GetGameBoardAsync();
-                        if (gameBoard is null)
-                        {
-                            workerState = ChangeWorkerState(workerState, WorkerState.Wait);
-                        }
-                        else if (gameBoard.GamePhase == GamePhase.Bomb)
-                        {
-                            var player = gameBoard.Players.Values.Where(p => p.Address == _uClient.Account.Value).ToList();
-                            if (player.Count == 1 && player[0].Bombs > 0)
-                            {
-                                workerState = ChangeWorkerState(workerState, WorkerState.Bomb);
-                            }
-                            else
-                            {
-                                workerState = ChangeWorkerState(workerState, WorkerState.OpBomb);
-                            }
-                        }
-                        else if (gameBoard.GamePhase == GamePhase.Play)
-                        {
-                            if (gameBoard.Winner != null && gameBoard.Winner.Count() > 0)
-                            {
-                                workerState = ChangeWorkerState(workerState, WorkerState.None);
-                            }
-                            else if (gameBoard.Players[gameBoard.Next].Address == _uClient.Account.Value)
-                            {
-                                workerState = ChangeWorkerState(workerState, WorkerState.Play);
-                            }
-                            else
-                            {
-                                workerState = ChangeWorkerState(workerState, WorkerState.OpTurn);
-                            }
-                        }
-                    }
 
-                    switch (workerState)
-                    {
-                        case WorkerState.None:
-                            break;
-
-                        case WorkerState.Faucet:
-                            var faucet = await _uClient.FaucetWorkerAsync();
-                            if (faucet)
-                            {
-                                SleepTime = 1000;
-                            }
-                            break;
-
-                        case WorkerState.Wait:
-                        case WorkerState.OpBomb:
-                        case WorkerState.OpTurn:
-                            SleepTime = 300;
-                            break;
-
-                        case WorkerState.Bomb:
-                            int[] bombPos = _logic.Bombs(gameBoard);
-                            var bomb = await _uClient.BombAsync(bombPos[0], bombPos[1]);
-                            if (bomb)
-                            {
-                                SleepTime = 300;
-                            }
-                            break;
-
-                        case WorkerState.Play:
-                            (Side, int) move = _logic.Play(gameBoard);
-                            var stone = await _uClient.StoneAsync(move.Item1, move.Item2);
-                            if (stone)
-                            {
-                                SleepTime = 300;
-                            }
-                            break;
                     }
                 }
-
-                // wait on extrinsic
-                if (_uClient.HasExtrinsics > 0)
-                {
-                    while (_uClient.HasExtrinsics > 0)
-                    {
-                        Print(Name, nodeState, runnerId, workerState, true);
-                        Console.WriteLine($"+-------------------------------------{_uClient.HasExtrinsics}-+");
-                        Thread.Sleep(500);
-                    }
-                    continue;
-                }
-
-                Print(Name, nodeState, runnerId, workerState);
-                // print board here ...
-                if (gameBoard != null)
-                {
-                    gameBoard.Print();
-                }
-                else
-                {
-                    Console.WriteLine("+--------------------" + (count % 3 == 0 ? workerState.ToString().PadRight(17, ' ').PadLeft(18, ' ') + "-+" : "-------------------+"));
-                }
-
-                if (count == int.MaxValue)
-                {
-                    count = 0;
-                }
-
-                Console.WriteLine((count % 2 == 0 ? "-" : "|").PadLeft(41));
 
                 Thread.Sleep(SleepTime);
             }
         }
 
-        private async Task<NodeState> GetNodeStateAsync(NodeState nodeState)
+        private void WaitOnExtrinsic()
+        {
+            // wait on extrinsic
+            var running = _nodeClient.ExtrinsicManger.Running;
+            if (running.Any())
+            {
+                Log.Information("Waiting on {count} extrinsic proccesed!", running.Count());
+                while (running.Any())
+                {
+                    Thread.Sleep(1000);
+                    running = _nodeClient.ExtrinsicManger.Running;
+                }
+                Log.Information("All extrinsic proccessed!");
+            }
+        }
+
+        private async Task DoNodeAsync(NodeState nodeState, CancellationToken token)
+        {
+            switch (nodeState)
+            {
+                case NodeState.Connect:
+                    _ = await _nodeClient.ConnectAsync(false, true, token);
+                    break;
+
+                case NodeState.Faucet:
+                    if (await _nodeClient.FaucetAsync(token))
+                    {
+                        WaitOnExtrinsic();
+                    }
+                    break;
+
+                case NodeState.Queue:
+                    if (await _nodeClient.QueueAsync(token))
+                    {
+                        WaitOnExtrinsic();
+                    }
+                    break;
+
+                case NodeState.Disconnect:
+                    _ = await _nodeClient.DisconnectAsync();
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        private async Task DoWorkerAsync(WorkerState workerState, CancellationToken token)
+        {
+            switch (workerState)
+            {
+                case WorkerState.Connect:
+                    _ = await _workerClient.ConnectAsync(false, false, token);
+                    break;
+
+                case WorkerState.ShieldingKey:
+                    _ = await _workerClient.GetShieldingKeyAsync();
+                    break;
+
+                case WorkerState.Faucet:
+                    _ = await _workerClient.FaucetAsync();
+                    break;
+
+                case WorkerState.Disconnect:
+                    _ = await _workerClient.DisconnectAsync();
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
+        private async Task<WorkerState> GetWorkerStateAsync(WorkerState workerState, CancellationToken token)
+        {
+            // Connect
+            if (!_workerClient.IsConnected)
+            {
+                return ChangeWorkerState(workerState, WorkerState.Connect);
+            }
+
+            // ShieldingKey
+            if (!_workerClient.HasShieldingKey)
+            {
+                return ChangeWorkerState(workerState, WorkerState.ShieldingKey);
+            }
+
+            var balanceWorker = await _workerClient.GetBalanceAsync();
+
+            // Faucet
+            if (balanceWorker is null || balanceWorker.Value < 100)
+            {
+                return ChangeWorkerState(workerState, WorkerState.Faucet);
+            }
+
+            return ChangeWorkerState(workerState, WorkerState.Game);
+
+            //var gameBoard = await _workerClient.GetGameBoardAsync();
+
+            //// Wait
+            //if (gameBoard is null)
+            //{
+            //    return ChangeWorkerState(workerState, WorkerState.Wait);
+            //}
+
+            //// Bomb
+            //if (gameBoard.GamePhase == GamePhase.Bomb)
+            //{
+            //    var player = gameBoard.Players.Values.Where(p => p.Address == _workerClient.Account.Value).ToList();
+            //    if (player.Count == 1 && player[0].Bombs > 0)
+            //    {
+            //        return ChangeWorkerState(workerState, WorkerState.Bomb);
+            //    }
+            //    else
+            //    {
+            //        return ChangeWorkerState(workerState, WorkerState.OpBomb);
+            //    }
+            //}
+
+            //// Finished, Play & OpTurn
+            //if (gameBoard.GamePhase == GamePhase.Play)
+            //{
+            //    if (gameBoard.PossibleMoves.Count() == 0 || gameBoard.Winner != null && gameBoard.Winner.Count() > 0)
+            //    {
+            //        return ChangeWorkerState(workerState, WorkerState.Finished);
+            //    }
+                
+            //    if (gameBoard.Next == _workerClient.Account.Value)
+            //    {
+            //        return ChangeWorkerState(workerState, WorkerState.Stone);
+            //    }
+            //    else
+            //    {
+            //        return ChangeWorkerState(workerState, WorkerState.OpStone);
+            //    }
+            //}
+
+            //return WorkerState.None;
+        }
+
+        private async Task<NodeState> GetNodeStateAsync(NodeState nodeState, CancellationToken token)
         {
 
             // Connect
-            if (!_uClient.IsNodeConnected)
+            if (!_nodeClient.IsConnected)
             {
                 return ChangeNodeState(nodeState, NodeState.Connect);
             }
 
-            var accountInfo = await _uClient.GetBalanceNodeAsync();
+            var accountInfo = await _nodeClient.GetBalanceNodeAsync(token);
 
             // Faucet
             if (accountInfo == null || accountInfo.Data == null || accountInfo.Data.Free.Value < 1000000000000)
@@ -221,49 +213,33 @@ namespace Ajuna.Automation.Benchmark.Bot
                 return ChangeNodeState(nodeState, NodeState.Faucet);
             }
 
-            var playerQueued = await _uClient.GetPlayerQueueAsync();
-            var runnerId = await _uClient.GetRunnerIdAsync();
+            var playerQueued = await _nodeClient.GetPlayerQueueAsync(token);
 
-            // Queue
-            if (playerQueued.Value == 0 && runnerId.Value == 0)
+            var runnerId = await _nodeClient.GetRunnerIdAsync(token);
+
+            // Queue & Players
+            if (runnerId == null || runnerId.Value == 0)
             {
-                return ChangeNodeState(nodeState, NodeState.Queue);
+                return playerQueued == null || playerQueued.Value == 0
+                    ? ChangeNodeState(nodeState, NodeState.Queue)
+                    : ChangeNodeState(nodeState, NodeState.Players);
+            }          
+
+            var runnerState = await _nodeClient.GetRunnerStateAsync(runnerId, token);
+
+            if (runnerState == null)
+            {
+                return ChangeNodeState(nodeState, NodeState.Wait);
             }
 
-            // Players
-            if (playerQueued.Value > 0 && runnerId.Value == 0)
+            // Worker, Play & Finished
+            return runnerState.Value switch
             {
-                return ChangeNodeState(nodeState, NodeState.Players);
-            }
-
-            var runnerState = await _uClient.GetRunnerStateAsync(runnerId);
-
-            // Worker
-            if (runnerState.Value == RunnerState.Queued)
-            {
-                return ChangeNodeState(nodeState, NodeState.Worker);
-            }
-
-            // Play
-            if (runnerState.Value == RunnerState.Accepted)
-            {
-                await _uClient.ConnectTeeAsync();
-                return ChangeNodeState(nodeState, NodeState.Play);
-            }
-
-            // Queue
-            if (runnerState.Value == RunnerState.Finished)
-            {
-                await _uClient.DisconnectTeeAsync();
-                return ChangeNodeState(nodeState, NodeState.Queue);
-            }
-
-            return NodeState.None;
-        }
-
-        private NodeState ChangeNodeState(NodeState nodeState, object connect)
-        {
-            throw new NotImplementedException();
+                RunnerState.Queued => ChangeNodeState(nodeState, NodeState.Worker),
+                RunnerState.Accepted => ChangeNodeState(nodeState, NodeState.Play),
+                RunnerState.Finished => ChangeNodeState(nodeState, NodeState.Finished),
+                _ => NodeState.None,
+            };
         }
 
         private NodeState ChangeNodeState(NodeState oldState, NodeState newState)
@@ -274,17 +250,17 @@ namespace Ajuna.Automation.Benchmark.Bot
             }
 
             var key = "Node" + oldState.ToString();
-            if (Tracker.TryGetValue(key, out long[] values))
+            if (_tracker.TryGetValue(key, out long[] values))
             {
                 values[0] = values[0] + 1;
-                values[1] = values[1] + stopwatch.ElapsedMilliseconds;
-                Tracker[key] = values;
+                values[1] = values[1] + _stopwatch.ElapsedMilliseconds;
+                _tracker[key] = values;
             }
             else
             {
-                Tracker.Add(key, new long[] { 1, stopwatch.ElapsedMilliseconds });
+                _tracker.Add(key, new long[] { 1, _stopwatch.ElapsedMilliseconds });
             }
-            stopwatch.Restart();
+            _stopwatch.Restart();
 
             return newState;
         }
@@ -297,61 +273,20 @@ namespace Ajuna.Automation.Benchmark.Bot
             }
 
             var key = "Worker" + oldState.ToString();
-            if (Tracker.TryGetValue(key, out long[] values))
+            if (_tracker.TryGetValue(key, out long[] values))
             {
                 values[0] = values[0] + 1;
-                values[1] = values[1] + stopwatch.ElapsedMilliseconds;
-                Tracker[key] = values;
+                values[1] = values[1] + _stopwatch.ElapsedMilliseconds;
+                _tracker[key] = values;
             }
             else
             {
-                Tracker.Add(key, new long[] { 1, stopwatch.ElapsedMilliseconds });
+                _tracker.Add(key, new long[] { 1, _stopwatch.ElapsedMilliseconds });
             }
-            stopwatch.Restart();
+            _stopwatch.Restart();
 
             return newState;
         }
 
-        private void Print(string name, NodeState nodeState, U32 runnerId, WorkerState workerState, bool flag = false)
-        {
-            Console.Clear();
-            Console.WriteLine("+---------------------------------------+");
-            Console.WriteLine("| " + $"Name: {name}       Node: {nodeState}".PadRight(38) + "|");
-            Console.WriteLine("| " + $" R-Id: {(runnerId != null ? runnerId.Value.ToString() : "").PadRight(6)}     Worker: {workerState}".PadRight(38) + "|");
-            switch (nodeState)
-            {
-                case NodeState.None:
-                    break;
-                case NodeState.Faucet:
-                    Console.WriteLine("| " + $"Let's robe Alice faucet! ".PadRight(38) + "|");
-                    break;
-                case NodeState.Queue:
-                    Console.WriteLine("| " + $"Queuing up, now.".PadRight(38) + "|");
-                    break;
-                case NodeState.Players:
-                    Console.WriteLine("| " + $"Waiting for Player.".PadRight(38) + "|");
-                    break;
-                case NodeState.Play:
-                    Console.WriteLine("| " + $"Playtime!".PadRight(38) + "|");
-                    break;
-                case NodeState.Worker:
-                    Console.WriteLine("| " + $"Waiting on TEE.".PadRight(38) + "|");
-                    break;
-                default:
-                    Console.WriteLine("| " + $" ".PadRight(38) + "|");
-                    break;
-            }
-
-            if (flag)
-            {
-                Console.WriteLine("| " + $" Waiting on In-Block".PadRight(38) + "|");
-            }
-            else
-            {
-                Console.WriteLine("| " + $" ".PadRight(38) + "|");
-            }
-
-
-        }
     }
 }
