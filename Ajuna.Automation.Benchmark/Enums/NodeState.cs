@@ -12,5 +12,6 @@
         Wait,
         Finished,
         Disconnect,
+        Runner,
     }
 }

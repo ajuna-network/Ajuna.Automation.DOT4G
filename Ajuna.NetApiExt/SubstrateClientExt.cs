@@ -258,7 +258,7 @@ namespace Ajuna.NetApi
             var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex);
             if (Unwrap(Wrapped.Nonce, nonceValue, out U32 nonce))
             {
-                Log.Information("Account[{value}]({nonce}) transfers {amount} to Account[{value}]", fromAccount.Value, nonce.Value, amount, toAccount.Value);
+                Log.Debug("Account[{value}]({nonce}) transfers {amount} to Account[{value}]", fromAccount.Value, nonce.Value, amount, toAccount.Value);
                 EnumTrustedOperation tOpTransfer = Wrapper.CreateCallBalanceTransfer(fromAccount, toAccount, amount, nonce.Value, mrenclaveHex, shardHex);
                 var returnValue = await ExecuteTrustedOperationAsync(tOpTransfer, shieldingKey, shardHex);
                 if (Unwrap(Wrapped.Hash, returnValue, out H256 value))
@@ -277,7 +277,7 @@ namespace Ajuna.NetApi
             var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex);
             if (Unwrap(Wrapped.Nonce, nonceValue, out U32 nonce))
             {
-                Log.Information("Account[{value}]({nonce}) play {name}", account.Value, nonce.Value, turn.GetType().Name);
+                Log.Debug("Account[{value}]({nonce}) play {name}", account.Value, nonce.Value, turn.GetType().Name);
                 EnumTrustedOperation tOpPlayTurn = Wrapper.CreateCallPlayTurn(account, turn, nonce.Value, mrenclaveHex, shardHex);
                 var returnValue = await ExecuteTrustedOperationAsync(tOpPlayTurn, shieldingKey, shardHex);
                 if (Unwrap(Wrapped.Hash, returnValue, out H256 value))

@@ -62,7 +62,7 @@ namespace Ajuna.Automation.Model
             return await client.GetFreeBalanceAsync(Account, _shieldingKey, _shardHex);
         }
 
-        public async Task<Dot4GObj?> GetGameBoardAsync()
+        public async Task<Dot4GObj> GetGameBoardAsync()
         {
             if (!IsConnected || !HasShieldingKey)
             {

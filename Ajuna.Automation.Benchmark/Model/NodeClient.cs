@@ -112,7 +112,7 @@ namespace Ajuna.Automation.Model
             return await client.GameRegistryStorage.Players(account, token);
         }
 
-        public async Task<EnumRunnerState?> GetRunnerStateAsync(U32 registerId, CancellationToken token)
+        public async Task<EnumRunnerState> GetRunnerStateAsync(U32 registerId, CancellationToken token)
         {
             if (!IsConnected || ExtrinsicManger.Running.Any())
             {

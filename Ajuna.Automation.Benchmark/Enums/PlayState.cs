@@ -7,6 +7,7 @@
         Stone,
         OpStone,
         None,
-        Finished
+        Finished,
+        NoBoard
     }
 }

@@ -24,6 +24,9 @@ namespace Ajuna.Automation
         private readonly Dictionary<string, long[]> _tracker;
         private readonly Stopwatch _stopwatch;
 
+        private (int, RunnerState) _currentRunner;
+        private Dot4GObj? _gameBoard;
+
         public Bot(NodeClient nodeClient, WorkerClient workerClient, IBotAI logic)
         {
             _nodeClient = nodeClient;
@@ -37,6 +40,8 @@ namespace Ajuna.Automation
         internal async Task RunAsync(CancellationToken token)
         {
             var SleepTime = 1000;
+
+            _currentRunner = (0, RunnerState.None);
 
             NodeState nodeState = NodeState.None;
             WorkerState workerState = WorkerState.None;
@@ -55,16 +60,18 @@ namespace Ajuna.Automation
                     await DoWorkerAsync(workerState, token);
                     if (workerState == WorkerState.Game)
                     {
-                        var gameBoard = await _workerClient.GetGameBoardAsync();
-                        if (gameBoard != null)
+                        _gameBoard = await _workerClient.GetGameBoardAsync();
+                        if (_gameBoard != null)
                         {
-                            Log.Information("GameBoard[{id}|{phase}]:{hash} Empty:{empty}, Moves:{moves}", gameBoard.Id, gameBoard.GamePhase, gameBoard.Next.Substring(0, 10), gameBoard.EmptySlots.Count, gameBoard.PossibleMoves.Count);
-                            playState = GetPlayState(playState, gameBoard);
-                            await DoPlayAsync(playState, gameBoard);
-                        } 
-                        else
-                        {
+                            Log.Information("GameBoard[{id}|{phase}]:{hash} Empty:{empty}, Moves:{moves}", _gameBoard.Id, _gameBoard.GamePhase, _gameBoard.Next.Substring(0, 10), _gameBoard.EmptySlots.Count, _gameBoard.PossibleMoves.Count);
+                        }
+                        playState = GetPlayState(playState, _gameBoard);
+                        await DoPlayAsync(playState, _gameBoard);
 
+                        if (playState == PlayState.Finished)
+                        {
+                            //_runnerState = ChangeState(_runnerState, RunnerState.None);
+                            playState = ChangeState(playState, PlayState.None);
                         }
                     }
                 }
@@ -129,8 +136,13 @@ namespace Ajuna.Automation
             }
         }
 
-        private async Task DoPlayAsync(PlayState playState, Dot4GObj gameBoard)
+        private async Task DoPlayAsync(PlayState playState, Dot4GObj? gameBoard)
         {
+            if (gameBoard == null)
+            {
+                return;
+            }
+
             switch (playState)
             {
                 case PlayState.Bomb:
@@ -162,33 +174,27 @@ namespace Ajuna.Automation
             }
 
             var playerQueued = await _nodeClient.GetPlayerQueueAsync(token);
-
             var runnerId = await _nodeClient.GetRunnerIdAsync(token);
 
             // Queue & Players
             if (runnerId == null || runnerId.Value == 0)
             {
+                _currentRunner.Item2 = ChangeState(_currentRunner.Item2, RunnerState.None);
                 return playerQueued == null || playerQueued.Value == 0
                     ? ChangeState(nodeState, NodeState.Queue)
                     : ChangeState(nodeState, NodeState.Players);
-            }          
-
-            var runnerState = await _nodeClient.GetRunnerStateAsync(runnerId, token);
-
-            Log.Debug("Runner ID {id} with {state}", runnerId, runnerState);
-
-            if (runnerState == null)
-            {
-                return ChangeState(nodeState, NodeState.Wait);
             }
 
+            var newRunnerState = await _nodeClient.GetRunnerStateAsync(runnerId, token);
+            _currentRunner.Item2 = ChangeState(_currentRunner.Item2, newRunnerState.Value);
+
             // Worker, Play & Finished
-            switch(runnerState.Value)
+            switch (newRunnerState?.Value)
             {
                 case RunnerState.Queued:
                     return ChangeState(nodeState, NodeState.Worker);
 
-                case RunnerState.Accepted: 
+                case RunnerState.Accepted:
                     return ChangeState(nodeState, NodeState.Play);
 
                 case RunnerState.Finished:
@@ -228,7 +234,7 @@ namespace Ajuna.Automation
         {
             if (gameBoard == null)
             {
-                return ChangeState(playState, PlayState.None);
+                return ChangeState(playState, PlayState.NoBoard);
             }
 
             switch (gameBoard.GamePhase)
@@ -245,15 +251,20 @@ namespace Ajuna.Automation
                     return ChangeState(playState, PlayState.OpBomb);
 
                 case GamePhase.Play:
-                    
-                    if (gameBoard.PossibleMoves.Count() == 0 || gameBoard.Winner != null && gameBoard.Winner.Count() > 0)
+
+                    if (gameBoard.Winner != null && gameBoard.Winner.Any())
                     {
-                        return ChangeState(playState, PlayState.Finished);
+                        return ChangeState(playState, PlayState.Finished, $"winner:{gameBoard.Winner}");
+                    }
+
+                    if (!gameBoard.PossibleMoves.Any())
+                    {
+                        return ChangeState(playState, PlayState.Finished, $"draw");
                     }
 
                     if (gameBoard.Next == _workerClient.Account.Value)
                     {
-                        return ChangeState(playState, PlayState.Stone);
+                        return ChangeState(playState, PlayState.Stone, $"moves:{gameBoard.PossibleMoves.Count()}");
                     }
 
                     return ChangeState(playState, PlayState.OpStone);
@@ -270,19 +281,24 @@ namespace Ajuna.Automation
             var running = _nodeClient.ExtrinsicManger.Running;
             if (running.Any())
             {
-                Log.Information("Waiting on {count} extrinsic proccesed!", running.Count());
+                Log.Debug("Waiting on {count} extrinsic proccesed!", running.Count());
                 while (running.Any())
                 {
                     Thread.Sleep(1000);
                     running = _nodeClient.ExtrinsicManger.Running;
                 }
-                Log.Information("All extrinsic proccessed!");
+                Log.Debug("All extrinsic proccessed!");
             }
         }
 
-        private T ChangeState<T>(T oldState, T newState)
+        private T ChangeState<T>(T oldState, T newState, string msg = "")
         {
-            if (oldState is null || newState is null)
+            if (msg != null && msg.Any())
+            {
+                Log.Debug("{name}: {msg}", typeof(T).Name, msg);
+            }
+
+            if (oldState == null || newState == null)
             {
                 return oldState;
             }
@@ -292,7 +308,7 @@ namespace Ajuna.Automation
                 return oldState;
             }
 
-            var key = oldState.GetType().Name + "_" + oldState.ToString();
+            var key = typeof(T).Name + "_" + oldState.ToString();
             var elapsedMs = _stopwatch.ElapsedMilliseconds;
             if (_tracker.TryGetValue(key, out long[] values))
             {
@@ -306,7 +322,7 @@ namespace Ajuna.Automation
             }
             _stopwatch.Restart();
 
-            Log.Debug("{name} = {state1} transtion {state2} in {ms} sec", oldState.GetType().Name, newState, oldState, (double)elapsedMs/1000);
+            Log.Information("{name} = {state1} transtion {state2} in {ms} sec", typeof(T).Name, newState, oldState, (double)elapsedMs/1000);
 
             return newState;
         }

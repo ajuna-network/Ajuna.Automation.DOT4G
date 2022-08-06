@@ -25,8 +25,6 @@ namespace Ajuna.NetApiExt.Model.AjunaWorker.Dot4G
 
         public string Next { get; }
 
-        public Dot4GPlayer NextPlayer => Players[Next];
-
         public string Winner { get; }
 
         public List<(Side, int)> PossibleMoves { get; }
@@ -35,9 +33,10 @@ namespace Ajuna.NetApiExt.Model.AjunaWorker.Dot4G
 
         public Dot4GObj(BoardGame boardGame)
         {
-            foreach (var player in boardGame.State.Players.Value.Select(p => Utils.GetAddressFrom(p.Value.Value.Select(q => q.Value).ToArray())))
+            var playerAddress = boardGame.State.Players.Value.Select(p => Utils.GetAddressFrom(p.Value.Value.Select(q => q.Value).ToArray())).ToList();
+            for (int i = 0; i < playerAddress.Count(); i++)
             {
-                Players.Add(player, new Dot4GPlayer(GetPlayername(player), player));
+                Players.Add(playerAddress[i], new Dot4GPlayer(GetPlayername(playerAddress[i]), playerAddress[i], i + 1));
             }
             GamePhase = boardGame.State.Phase.Value;
             Id = (int) boardGame.BoardId.Value;
@@ -173,6 +172,120 @@ namespace Ajuna.NetApiExt.Model.AjunaWorker.Dot4G
                         if (y < Board.GetLength(1) - 1 && Board[column, y + 1].Cell == Cell.Empty)
                         {
                             continue;
+                        }
+                        break;
+                    }
+                    break;
+            }
+
+            return result;
+        }
+
+        public List<int[]> GetStroke(Side side, int column, int stone, out int tagged)
+        {
+
+            tagged = 0;
+            List<int[]> result = new List<int[]>();
+
+            if (!ValidateStone(side, column))
+            {
+                return result;
+            }
+
+            switch (side)
+            {
+                case Side.North:
+
+                    for (int x = 0; x < Board.GetLength(0); x++)
+                    {
+                        result.Add(new int[] { x, column });
+
+                        if (x < Board.GetLength(0) - 1)
+                        {
+                            var next = Board[x + 1, column];
+
+                            if (next.Cell == Cell.Stone && next.PlayerIds.First() == stone)
+                            {
+                                tagged = +1;
+                                continue;
+                            }
+                            
+                            if (tagged == 0 && next.Cell == Cell.Empty)
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+                    break;
+
+                case Side.East:
+                    for (int y = Board.GetLength(1) - 1; y >= 0; y--)
+                    {
+                        result.Add(new int[] { column, y });
+                        
+                        if (y > 0)
+                        {
+                            var next = Board[column, y - 1];
+
+                            if (next.Cell == Cell.Stone && next.PlayerIds.First() == stone)
+                            {
+                                tagged = +1;
+                                continue;
+                            }
+
+                            if (next.Cell == Cell.Empty)
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+                    break;
+
+                case Side.South:
+                    for (int x = Board.GetLength(0) - 1; x >= 0; x--)
+                    {
+                        result.Add(new int[] { x, column });
+
+                        if (x > 0)
+                        {
+                            var next = Board[x - 1, column];
+
+                            if (next.Cell == Cell.Stone && next.PlayerIds.First() == stone)
+                            {
+                                tagged = +1;
+                                continue;
+                            }
+
+                            if (next.Cell == Cell.Empty)
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+                    }
+                    break;
+
+                case Side.West:
+                    for (int y = 0; y < Board.GetLength(1); y++)
+                    {
+                        result.Add(new int[] { column, y });
+
+                        if (y < Board.GetLength(1) - 1)
+                        {
+                            var next = Board[column, y + 1];
+
+                            if (next.Cell == Cell.Stone && next.PlayerIds.First() == stone)
+                            {
+                                tagged = +1;
+                                continue;
+                            }
+
+                            if (next.Cell == Cell.Empty)
+                            {
+                                continue;
+                            }
                         }
                         break;
                     }

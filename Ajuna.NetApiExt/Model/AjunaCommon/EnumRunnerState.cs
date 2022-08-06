@@ -25,6 +25,8 @@ namespace Ajuna.NetApi.Model.AjunaCommon
         Accepted,
         
         Finished,
+
+        None
     }
     
     /// <summary>
