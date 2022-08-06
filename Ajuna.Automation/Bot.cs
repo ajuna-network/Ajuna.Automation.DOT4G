@@ -68,12 +68,6 @@ namespace Ajuna.Automation
                         }
                         playState = GetPlayState(playState, _gameBoard);
                         await DoPlayAsync(playState, _gameBoard);
-
-                        if (playState == PlayState.Finished)
-                        {
-                            //_runnerState = ChangeState(_runnerState, RunnerState.None);
-                            playState = ChangeState(playState, PlayState.None);
-                        }
                     }
                 }
 
@@ -101,6 +95,12 @@ namespace Ajuna.Automation
                     {
                         WaitOnExtrinsic();
                     }
+                    break;
+
+                case NodeState.Finished:
+                    var downTime = 60000;
+                    Log.Information("Downtime for {value} sec.", (double)downTime / 1000);
+                    Thread.Sleep(downTime);
                     break;
 
                 case NodeState.Disconnect:
@@ -193,20 +193,23 @@ namespace Ajuna.Automation
             }
 
             var newRunnerState = await _nodeClient.GetRunnerStateAsync(_currentRunner.Item1, token);
-            _currentRunner.Item2 = ChangeState(_currentRunner.Item2, newRunnerState.Value);
 
             // Worker, Play & Finished
             switch (newRunnerState?.Value)
             {
                 case RunnerState.Queued:
+                    _currentRunner.Item2 = ChangeState(_currentRunner.Item2, newRunnerState.Value, $"runner:{_currentRunner.Item1.Value}");
                     return ChangeState(nodeState, NodeState.Worker);
 
                 case RunnerState.Accepted:
-                    return ChangeState(nodeState, NodeState.Play, $"runner:{_currentRunner.Item1.Value}");
+                    _currentRunner.Item2 = ChangeState(_currentRunner.Item2, newRunnerState.Value, $"runner:{_currentRunner.Item1.Value}");
+                    return ChangeState(nodeState, NodeState.Play);
 
                 case RunnerState.Finished:
-                    Log.Debug("Runner ID {id} is {state}", _currentRunner.Item1.Value, newRunnerState?.Value);
-                    _currentRunner = (null, RunnerState.None);
+                    var oldId = _currentRunner.Item1.Value;
+                    Log.Debug("Runner ID {id} is {state}", oldId, newRunnerState?.Value);
+                    _currentRunner.Item1 = null;
+                    _currentRunner.Item2 = ChangeState(_currentRunner.Item2, RunnerState.None, $"runner:{oldId}");
                     return ChangeState(nodeState, NodeState.Finished);
 
                 default: 
@@ -302,11 +305,6 @@ namespace Ajuna.Automation
 
         private T ChangeState<T>(T oldState, T newState, string msg = "")
         {
-            if (msg != null && msg.Any())
-            {
-                Log.Debug("{name}: {msg}", typeof(T).Name, msg);
-            }
-
             if (oldState == null || newState == null)
             {
                 return oldState;
@@ -331,7 +329,12 @@ namespace Ajuna.Automation
             }
             _stopwatch.Restart();
 
-            Log.Information("{name} = {state1} from {state2} in {ms} sec", typeof(T).Name, newState, oldState, (double)elapsedMs/1000);
+            if (msg != null && msg.Any())
+            {
+                msg = " - " + msg;
+            }
+
+            Log.Information("{name} = {state1} from {state2} in {ms} sec.{msg}", typeof(T).Name, newState, oldState, (double)elapsedMs / 1000, msg);
 
             return newState;
         }

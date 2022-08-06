@@ -114,12 +114,12 @@ namespace Ajuna.Automation.Model
                 case ExtrinsicState.None:
                     if (extrinsicUpdate.InBlock?.Value.Length > 0)
                     {
-                        Log.Debug("{name}[{id}] InBlock {hash} got update", queueInfo.ExtrinsicType, subscriptionId, extrinsicUpdate.InBlock.Value);
+                        Log.Debug("{name}[{id}] InBlock {hash} got update", queueInfo.ExtrinsicType, subscriptionId, extrinsicUpdate.InBlock.Value.Substring(0, 10));
                         queueInfo.Update("InBlock");
                     }
                     else if (extrinsicUpdate.Finalized?.Value.Length > 0)
                     {
-                        Log.Debug("{name}[{id}] Finalized {hash} got update", queueInfo.ExtrinsicType, subscriptionId, extrinsicUpdate.Finalized.Value);
+                        Log.Debug("{name}[{id}] Finalized {hash} got update", queueInfo.ExtrinsicType, subscriptionId, extrinsicUpdate.Finalized.Value.Substring(0, 10));
                         queueInfo.Update("Finalized");
                     }
                     else
