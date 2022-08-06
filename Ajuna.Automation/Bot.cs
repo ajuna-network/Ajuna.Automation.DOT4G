@@ -64,7 +64,9 @@ namespace Ajuna.Automation
                         _gameBoard = await _workerClient.GetGameBoardAsync();
                         if (_gameBoard != null)
                         {
-                            Log.Information("GameBoard[{id}|{phase}]:{hash} Empty:{empty}, Moves:{moves}", _gameBoard.Id, _gameBoard.GamePhase, _gameBoard.Next.Substring(0, 10), _gameBoard.EmptySlots.Count, _gameBoard.PossibleMoves.Count);
+                            var myTurn = _gameBoard.Next == _nodeClient.Account.Value;
+                            var winner = _gameBoard.Winner != null && _gameBoard.Winner.Any();
+                            Log.Information("GameBoard[{id}|{phase}] - turn:{bool} [e{empty}|m{moves}] win:{winner}", _gameBoard.Id, _gameBoard.GamePhase, myTurn, _gameBoard.EmptySlots.Count, _gameBoard.PossibleMoves.Count, winner);
                         }
                         playState = GetPlayState(playState, _gameBoard);
                         await DoPlayAsync(playState, _gameBoard);
