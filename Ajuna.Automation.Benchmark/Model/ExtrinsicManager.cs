@@ -114,38 +114,38 @@ namespace Ajuna.Automation.Model
                 case ExtrinsicState.None:
                     if (extrinsicUpdate.InBlock?.Value.Length > 0)
                     {
-                        Log.Debug("{id} InBlock {hash} got update", subscriptionId, extrinsicUpdate.InBlock.Value);
+                        Log.Debug("{name}[{id}] InBlock {hash} got update", queueInfo.ExtrinsicType, subscriptionId, extrinsicUpdate.InBlock.Value);
                         queueInfo.Update("InBlock");
                     }
                     else if (extrinsicUpdate.Finalized?.Value.Length > 0)
                     {
-                        Log.Debug("{id} Finalized {hash} got update", subscriptionId, extrinsicUpdate.Finalized.Value);
+                        Log.Debug("{name}[{id}] Finalized {hash} got update", queueInfo.ExtrinsicType, subscriptionId, extrinsicUpdate.Finalized.Value);
                         queueInfo.Update("Finalized");
                     }
                     else
                     {
-                        Log.Debug("{id} updated to {state}", subscriptionId, extrinsicUpdate.ExtrinsicState);
+                        Log.Debug("{name}[{id}] updated to {state}", queueInfo.ExtrinsicType, subscriptionId, extrinsicUpdate.ExtrinsicState);
                         queueInfo.Update("None");
                     };
                     break;
 
                 case ExtrinsicState.Future:
-                    Log.Debug("{id} updated to Future", subscriptionId);
+                    Log.Debug("{name}[{id}] updated to Future", queueInfo.ExtrinsicType, subscriptionId);
                     queueInfo.Update("Future");
                     break;
 
                 case ExtrinsicState.Ready:
-                    Log.Debug("{id} updated to Ready", subscriptionId);
+                    Log.Debug("{name}[{id}] updated to Ready", queueInfo.ExtrinsicType, subscriptionId);
                     queueInfo.Update("Ready");
                     break;
 
                 case ExtrinsicState.Dropped:
-                    Log.Debug("{id} updated to Dropped", subscriptionId);
+                    Log.Debug("{name}[{id}] updated to Dropped", queueInfo.ExtrinsicType, subscriptionId);
                     queueInfo.Update("Dropped");
                     break;
 
                 case ExtrinsicState.Invalid:
-                    Log.Debug("{id} updated to Invalid", subscriptionId);
+                    Log.Debug("{name}[{id}] updated to Invalid", queueInfo.ExtrinsicType, subscriptionId);
                     queueInfo.Update("Invalid");
                     break;
             }

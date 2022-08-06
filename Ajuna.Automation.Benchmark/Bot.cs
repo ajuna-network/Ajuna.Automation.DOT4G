@@ -3,6 +3,7 @@ using Ajuna.Automation.Enums;
 using Ajuna.Automation.Model;
 using Ajuna.NetApi.Model.AjunaCommon;
 using Ajuna.NetApi.Model.Dot4gravity;
+using Ajuna.NetApi.Model.Types.Primitive;
 using Ajuna.NetApiExt.Model.AjunaWorker.Dot4G;
 using Serilog;
 using System;
@@ -24,7 +25,7 @@ namespace Ajuna.Automation
         private readonly Dictionary<string, long[]> _tracker;
         private readonly Stopwatch _stopwatch;
 
-        private (int, RunnerState) _currentRunner;
+        private (U32?, RunnerState) _currentRunner;
         private Dot4GObj? _gameBoard;
 
         public Bot(NodeClient nodeClient, WorkerClient workerClient, IBotAI logic)
@@ -41,7 +42,7 @@ namespace Ajuna.Automation
         {
             var SleepTime = 1000;
 
-            _currentRunner = (0, RunnerState.None);
+            _currentRunner = (null, RunnerState.None);
 
             NodeState nodeState = NodeState.None;
             WorkerState workerState = WorkerState.None;
@@ -173,19 +174,25 @@ namespace Ajuna.Automation
                 return ChangeState(nodeState, NodeState.Faucet);
             }
 
-            var playerQueued = await _nodeClient.GetPlayerQueueAsync(token);
-            var runnerId = await _nodeClient.GetRunnerIdAsync(token);
-
             // Queue & Players
-            if (runnerId == null || runnerId.Value == 0)
+            if (_currentRunner.Item1 == null || _currentRunner.Item1.Value == 0)
             {
+                var playerQueued = await _nodeClient.GetPlayerQueueAsync(token);
+                _currentRunner.Item1 = await _nodeClient.GetRunnerIdAsync(token);
                 _currentRunner.Item2 = ChangeState(_currentRunner.Item2, RunnerState.None);
-                return playerQueued == null || playerQueued.Value == 0
-                    ? ChangeState(nodeState, NodeState.Queue)
-                    : ChangeState(nodeState, NodeState.Players);
+
+                if (playerQueued != null && playerQueued.Value > 0)
+                {
+                    return ChangeState(nodeState, NodeState.Players);
+                }
+
+                if (_currentRunner.Item1 == null || _currentRunner.Item1.Value == 0)
+                {
+                    return ChangeState(nodeState, NodeState.Queue);
+                } 
             }
 
-            var newRunnerState = await _nodeClient.GetRunnerStateAsync(runnerId, token);
+            var newRunnerState = await _nodeClient.GetRunnerStateAsync(_currentRunner.Item1, token);
             _currentRunner.Item2 = ChangeState(_currentRunner.Item2, newRunnerState.Value);
 
             // Worker, Play & Finished
@@ -195,9 +202,11 @@ namespace Ajuna.Automation
                     return ChangeState(nodeState, NodeState.Worker);
 
                 case RunnerState.Accepted:
-                    return ChangeState(nodeState, NodeState.Play);
+                    return ChangeState(nodeState, NodeState.Play, $"runner:{_currentRunner.Item1.Value}");
 
                 case RunnerState.Finished:
+                    Log.Debug("Runner ID {id} is {state}", _currentRunner.Item1.Value, newRunnerState?.Value);
+                    _currentRunner = (null, RunnerState.None);
                     return ChangeState(nodeState, NodeState.Finished);
 
                 default: 
@@ -322,7 +331,7 @@ namespace Ajuna.Automation
             }
             _stopwatch.Restart();
 
-            Log.Information("{name} = {state1} transtion {state2} in {ms} sec", typeof(T).Name, newState, oldState, (double)elapsedMs/1000);
+            Log.Information("{name} = {state1} from {state2} in {ms} sec", typeof(T).Name, newState, oldState, (double)elapsedMs/1000);
 
             return newState;
         }
