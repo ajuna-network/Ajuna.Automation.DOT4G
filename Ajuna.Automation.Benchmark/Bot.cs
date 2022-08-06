@@ -1,6 +1,10 @@
-﻿using Ajuna.NetApi.Model.AjunaCommon;
+﻿using Ajuna.Automation.AI;
+using Ajuna.Automation.Enums;
+using Ajuna.NetApi.Model.AjunaCommon;
 using Ajuna.NetApi.Model.Dot4gravity;
+using Ajuna.NetApiExt.Model.AjunaWorker.Dot4G;
 using Serilog;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -14,14 +18,16 @@ namespace Ajuna.Automation
     {
         private readonly NodeClient _nodeClient;
         private readonly WorkerClient _workerClient;
+        private readonly IBotAI _logic;
 
         private readonly Dictionary<string, long[]> _tracker;
         private readonly Stopwatch _stopwatch;
 
-        public Bot(NodeClient nodeClient, WorkerClient workerClient)
+        public Bot(NodeClient nodeClient, WorkerClient workerClient, IBotAI logic)
         {
             _nodeClient = nodeClient;
             _workerClient = workerClient;
+            _logic = logic;
 
             _tracker = new Dictionary<string, long[]>();
             _stopwatch = new Stopwatch();
@@ -33,6 +39,7 @@ namespace Ajuna.Automation
 
             NodeState nodeState = NodeState.None;
             WorkerState workerState = WorkerState.None;
+            PlayState playState = PlayState.None;
 
             _stopwatch.Start();
 
@@ -49,11 +56,80 @@ namespace Ajuna.Automation
                     await DoWorkerAsync(workerState, token);
                     if (workerState == WorkerState.Game)
                     {
+                        var gameBoard = await _workerClient.GetGameBoardAsync();
+                        if (gameBoard != null)
+                        {
+                            Log.Information("GameBoard[{id}|{phase}]:{hash} Empty:{empty},Moves:{moves}", gameBoard.Id, gameBoard.GamePhase, gameBoard.Next, gameBoard.EmptySlots.Count, gameBoard.PossibleMoves.Count);
+                            playState = GetPlayState(playState, gameBoard);
+                            Log.Information("play state is {state}", playState);
+                            await DoPlayAsync(playState, gameBoard);
+                        } 
+                        else
+                        {
 
+                        }
                     }
                 }
 
                 Thread.Sleep(SleepTime);
+            }
+        }
+
+        private async Task DoPlayAsync(PlayState playState, Dot4GObj gameBoard)
+        {
+            switch (playState)
+            {
+                case PlayState.Bomb:
+                    int[] bombPos = _logic.Bombs(gameBoard);
+                    _ = await _workerClient.BombAsync(bombPos[0], bombPos[1]);
+                    break;
+
+                case PlayState.Stone:
+                    (Side, int) move = _logic.Play(gameBoard);
+                    _ = await _workerClient.StoneAsync(move.Item1, move.Item2);
+                    break;
+            }
+        }
+
+        private PlayState GetPlayState(PlayState playState, Dot4GObj gameBoard)
+        {
+            if (gameBoard == null)
+            {
+                return ChangeState(playState, PlayState.None);
+            }
+
+            switch (gameBoard.GamePhase)
+            {
+                case GamePhase.Bomb:
+                    {
+                        var player = gameBoard.Players.Values.Where(p => p.Address == _workerClient.Account.Value).ToList();
+                        if (player.Count == 1 && player[0].Bombs > 0)
+                        {
+                            return ChangeState(playState, PlayState.Bomb);
+                        }
+                        else
+                        {
+                            return ChangeState(playState, PlayState.OpBomb);
+                        }
+                    }
+
+                case GamePhase.Play:
+                    if (gameBoard.PossibleMoves.Count() == 0 || gameBoard.Winner != null && gameBoard.Winner.Count() > 0)
+                    {
+                        return ChangeState(playState, PlayState.Finished);
+                    }
+
+                    if (gameBoard.Next == _workerClient.Account.Value)
+                    {
+                        return ChangeState(playState, PlayState.Stone);
+                    }
+                    else
+                    {
+                        return ChangeState(playState, PlayState.OpStone);
+                    }
+
+                default:
+                    return ChangeState(playState, PlayState.None);
             }
         }
 
@@ -134,13 +210,13 @@ namespace Ajuna.Automation
             // Connect
             if (!_workerClient.IsConnected)
             {
-                return ChangeWorkerState(workerState, WorkerState.Connect);
+                return ChangeState(workerState, WorkerState.Connect);
             }
 
             // ShieldingKey
             if (!_workerClient.HasShieldingKey)
             {
-                return ChangeWorkerState(workerState, WorkerState.ShieldingKey);
+                return ChangeState(workerState, WorkerState.ShieldingKey);
             }
 
             var balanceWorker = await _workerClient.GetBalanceAsync();
@@ -148,52 +224,10 @@ namespace Ajuna.Automation
             // Faucet
             if (balanceWorker is null || balanceWorker.Value < 100)
             {
-                return ChangeWorkerState(workerState, WorkerState.Faucet);
+                return ChangeState(workerState, WorkerState.Faucet);
             }
 
-            return ChangeWorkerState(workerState, WorkerState.Game);
-
-            //var gameBoard = await _workerClient.GetGameBoardAsync();
-
-            //// Wait
-            //if (gameBoard is null)
-            //{
-            //    return ChangeWorkerState(workerState, WorkerState.Wait);
-            //}
-
-            //// Bomb
-            //if (gameBoard.GamePhase == GamePhase.Bomb)
-            //{
-            //    var player = gameBoard.Players.Values.Where(p => p.Address == _workerClient.Account.Value).ToList();
-            //    if (player.Count == 1 && player[0].Bombs > 0)
-            //    {
-            //        return ChangeWorkerState(workerState, WorkerState.Bomb);
-            //    }
-            //    else
-            //    {
-            //        return ChangeWorkerState(workerState, WorkerState.OpBomb);
-            //    }
-            //}
-
-            //// Finished, Play & OpTurn
-            //if (gameBoard.GamePhase == GamePhase.Play)
-            //{
-            //    if (gameBoard.PossibleMoves.Count() == 0 || gameBoard.Winner != null && gameBoard.Winner.Count() > 0)
-            //    {
-            //        return ChangeWorkerState(workerState, WorkerState.Finished);
-            //    }
-                
-            //    if (gameBoard.Next == _workerClient.Account.Value)
-            //    {
-            //        return ChangeWorkerState(workerState, WorkerState.Stone);
-            //    }
-            //    else
-            //    {
-            //        return ChangeWorkerState(workerState, WorkerState.OpStone);
-            //    }
-            //}
-
-            //return WorkerState.None;
+            return ChangeState(workerState, WorkerState.Game);
         }
 
         private async Task<NodeState> GetNodeStateAsync(NodeState nodeState, CancellationToken token)
@@ -202,7 +236,7 @@ namespace Ajuna.Automation
             // Connect
             if (!_nodeClient.IsConnected)
             {
-                return ChangeNodeState(nodeState, NodeState.Connect);
+                return ChangeState(nodeState, NodeState.Connect);
             }
 
             var accountInfo = await _nodeClient.GetBalanceNodeAsync(token);
@@ -210,7 +244,7 @@ namespace Ajuna.Automation
             // Faucet
             if (accountInfo == null || accountInfo.Data == null || accountInfo.Data.Free.Value < 1000000000000)
             {
-                return ChangeNodeState(nodeState, NodeState.Faucet);
+                return ChangeState(nodeState, NodeState.Faucet);
             }
 
             var playerQueued = await _nodeClient.GetPlayerQueueAsync(token);
@@ -221,58 +255,40 @@ namespace Ajuna.Automation
             if (runnerId == null || runnerId.Value == 0)
             {
                 return playerQueued == null || playerQueued.Value == 0
-                    ? ChangeNodeState(nodeState, NodeState.Queue)
-                    : ChangeNodeState(nodeState, NodeState.Players);
+                    ? ChangeState(nodeState, NodeState.Queue)
+                    : ChangeState(nodeState, NodeState.Players);
             }          
 
             var runnerState = await _nodeClient.GetRunnerStateAsync(runnerId, token);
 
             if (runnerState == null)
             {
-                return ChangeNodeState(nodeState, NodeState.Wait);
+                return ChangeState(nodeState, NodeState.Wait);
             }
 
             // Worker, Play & Finished
             return runnerState.Value switch
             {
-                RunnerState.Queued => ChangeNodeState(nodeState, NodeState.Worker),
-                RunnerState.Accepted => ChangeNodeState(nodeState, NodeState.Play),
-                RunnerState.Finished => ChangeNodeState(nodeState, NodeState.Finished),
+                RunnerState.Queued => ChangeState(nodeState, NodeState.Worker),
+                RunnerState.Accepted => ChangeState(nodeState, NodeState.Play),
+                RunnerState.Finished => ChangeState(nodeState, NodeState.Finished),
                 _ => NodeState.None,
             };
         }
 
-        private NodeState ChangeNodeState(NodeState oldState, NodeState newState)
+        private T ChangeState<T>(T oldState, T newState)
         {
-            if (oldState == newState)
+            if (oldState is null || newState is null)
             {
                 return oldState;
             }
 
-            var key = "Node" + oldState.ToString();
-            if (_tracker.TryGetValue(key, out long[] values))
-            {
-                values[0] = values[0] + 1;
-                values[1] = values[1] + _stopwatch.ElapsedMilliseconds;
-                _tracker[key] = values;
-            }
-            else
-            {
-                _tracker.Add(key, new long[] { 1, _stopwatch.ElapsedMilliseconds });
-            }
-            _stopwatch.Restart();
-
-            return newState;
-        }
-
-        private WorkerState ChangeWorkerState(WorkerState oldState, WorkerState newState)
-        {
-            if (oldState == newState)
+            if (oldState.Equals(newState))
             {
                 return oldState;
             }
 
-            var key = "Worker" + oldState.ToString();
+            var key = oldState.GetType().Name + "_" + oldState.ToString();
             if (_tracker.TryGetValue(key, out long[] values))
             {
                 values[0] = values[0] + 1;

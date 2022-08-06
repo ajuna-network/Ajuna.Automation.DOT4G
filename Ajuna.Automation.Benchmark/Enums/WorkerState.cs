@@ -1,4 +1,4 @@
-﻿namespace Ajuna.Automation
+﻿namespace Ajuna.Automation.Enums
 {
     public enum WorkerState
     {

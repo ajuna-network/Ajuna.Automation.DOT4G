@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ajuna.UnityInterface", "Aju
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ajuna.NetApiExt", "Ajuna.NetApiExt\Ajuna.NetApiExt.csproj", "{18DDB86F-A34E-4CC1-8B77-F903C5E74DEA}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ajuna.Automation.Bot", "Ajuna.Automation.Benchmark\Ajuna.Automation.Bot.csproj", "{945B46FE-51FB-4649-912D-DBA29F906DAE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ajuna.Automation", "Ajuna.Automation.Benchmark\Ajuna.Automation.csproj", "{945B46FE-51FB-4649-912D-DBA29F906DAE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -1,4 +1,5 @@
-﻿using Ajuna.NetApi;
+﻿using Ajuna.Automation.AI;
+using Ajuna.NetApi;
 using Serilog;
 using System;
 using System.Threading;
@@ -59,7 +60,9 @@ namespace Ajuna.Automation
             var nodeClient = new NodeClient(account, NODE_URL);
             var workerClient = new WorkerClient(account, WORKER_URL, SHARD, MRENCLAVE);
 
-            var client = new Bot(nodeClient, workerClient);
+            var logic = new RandomAI();
+
+            var client = new Bot(nodeClient, workerClient, logic);
 
             await client.RunAsync(token);
 
