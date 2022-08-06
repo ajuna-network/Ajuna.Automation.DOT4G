@@ -3,11 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32602.215
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dot4GBot", "Dot4GBot\Dot4GBot.csproj", "{7F21FC8D-06D0-4831-BE05-7B8CE0C916D7}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ajuna.UnityInterface", "Ajuna.UnityInterface\Ajuna.UnityInterface.csproj", "{9945A08E-AEBD-44B5-92F5-112ED996D6F0}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ajuna.NetApiExt", "Ajuna.NetApiExt\Ajuna.NetApiExt.csproj", "{18DDB86F-A34E-4CC1-8B77-F903C5E74DEA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ajuna.NetApi.Extension", "Ajuna.NetApiExt\Ajuna.NetApi.Extension.csproj", "{18DDB86F-A34E-4CC1-8B77-F903C5E74DEA}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Ajuna.Automation", "Ajuna.Automation.Benchmark\Ajuna.Automation.csproj", "{945B46FE-51FB-4649-912D-DBA29F906DAE}"
 EndProject
@@ -17,14 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{7F21FC8D-06D0-4831-BE05-7B8CE0C916D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7F21FC8D-06D0-4831-BE05-7B8CE0C916D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7F21FC8D-06D0-4831-BE05-7B8CE0C916D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7F21FC8D-06D0-4831-BE05-7B8CE0C916D7}.Release|Any CPU.Build.0 = Release|Any CPU
-		{9945A08E-AEBD-44B5-92F5-112ED996D6F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9945A08E-AEBD-44B5-92F5-112ED996D6F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9945A08E-AEBD-44B5-92F5-112ED996D6F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9945A08E-AEBD-44B5-92F5-112ED996D6F0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{18DDB86F-A34E-4CC1-8B77-F903C5E74DEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{18DDB86F-A34E-4CC1-8B77-F903C5E74DEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{18DDB86F-A34E-4CC1-8B77-F903C5E74DEA}.Release|Any CPU.ActiveCfg = Release|Any CPU

@@ -15,7 +15,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Ajuna.Automation
+namespace Ajuna.Automation.Model
 {
     public abstract class Client
     {

@@ -14,7 +14,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Ajuna.Automation
+namespace Ajuna.Automation.Model
 {
     public class NodeClient : Client
     {
@@ -67,9 +67,9 @@ namespace Ajuna.Automation
 
         public async Task<bool> QueueAsync(CancellationToken token)
         {
-            if (!IsConnected || ExtrinsicManger.Running.Any()) 
-            { 
-                return false; 
+            if (!IsConnected || ExtrinsicManger.Running.Any())
+            {
+                return false;
             }
 
             var extrinsic = GameRegistryCalls.Queue();

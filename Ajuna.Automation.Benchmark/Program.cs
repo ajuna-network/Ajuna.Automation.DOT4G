@@ -1,4 +1,5 @@
 ﻿using Ajuna.Automation.AI;
+using Ajuna.Automation.Model;
 using Ajuna.NetApi;
 using Serilog;
 using System;
@@ -10,7 +11,7 @@ namespace Ajuna.Automation
     partial class Program
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://a5bc-84-75-48-249.ngrok.io";
+        private const string WORKER_URL = "ws://56b4-84-75-48-249.ngrok.io";
         private const string SHARD = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
         private const string MRENCLAVE = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
 

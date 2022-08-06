@@ -5,7 +5,7 @@ using Ajuna.NetApiExt.Model.AjunaWorker.Dot4G;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 
-namespace Ajuna.Automation
+namespace Ajuna.Automation.Model
 {
     public class WorkerClient : Client
     {
@@ -17,7 +17,7 @@ namespace Ajuna.Automation
 
         public bool HasShieldingKey => _shieldingKey.Modulus != null;
 
-        public WorkerClient(Account account, string url, string shardHex, string mrenclaveHex) : base(account, url) 
+        public WorkerClient(Account account, string url, string shardHex, string mrenclaveHex) : base(account, url)
         {
             _shieldingKey = new RSAParameters();
             _shardHex = shardHex;
@@ -43,7 +43,7 @@ namespace Ajuna.Automation
                 return false;
             }
 
-            var hash = await client.BalanceTransferAsync(Alice, Account, (uint)100000, _shieldingKey, _shardHex, _mrenclaveHex);
+            var hash = await client.BalanceTransferAsync(Alice, Account, 100000, _shieldingKey, _shardHex, _mrenclaveHex);
             if (hash == null)
             {
                 return false;

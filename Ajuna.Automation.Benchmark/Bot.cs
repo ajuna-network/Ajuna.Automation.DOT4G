@@ -1,5 +1,6 @@
 ﻿using Ajuna.Automation.AI;
 using Ajuna.Automation.Enums;
+using Ajuna.Automation.Model;
 using Ajuna.NetApi.Model.AjunaCommon;
 using Ajuna.NetApi.Model.Dot4gravity;
 using Ajuna.NetApiExt.Model.AjunaWorker.Dot4G;
@@ -46,22 +47,19 @@ namespace Ajuna.Automation
             while (!token.IsCancellationRequested)
             {
                 nodeState = await GetNodeStateAsync(nodeState, token);
-                Log.Information("node state is {state}", nodeState);
                 await DoNodeAsync(nodeState, token);
 
                 if (nodeState == NodeState.Play)
                 {
                     workerState = await GetWorkerStateAsync(workerState, token);
-                    Log.Information("worker state is {state}", workerState);
                     await DoWorkerAsync(workerState, token);
                     if (workerState == WorkerState.Game)
                     {
                         var gameBoard = await _workerClient.GetGameBoardAsync();
                         if (gameBoard != null)
                         {
-                            Log.Information("GameBoard[{id}|{phase}]:{hash} Empty:{empty},Moves:{moves}", gameBoard.Id, gameBoard.GamePhase, gameBoard.Next, gameBoard.EmptySlots.Count, gameBoard.PossibleMoves.Count);
+                            Log.Information("GameBoard[{id}|{phase}]:{hash} Empty:{empty}, Moves:{moves}", gameBoard.Id, gameBoard.GamePhase, gameBoard.Next.Substring(0, 10), gameBoard.EmptySlots.Count, gameBoard.PossibleMoves.Count);
                             playState = GetPlayState(playState, gameBoard);
-                            Log.Information("play state is {state}", playState);
                             await DoPlayAsync(playState, gameBoard);
                         } 
                         else
@@ -72,80 +70,6 @@ namespace Ajuna.Automation
                 }
 
                 Thread.Sleep(SleepTime);
-            }
-        }
-
-        private async Task DoPlayAsync(PlayState playState, Dot4GObj gameBoard)
-        {
-            switch (playState)
-            {
-                case PlayState.Bomb:
-                    int[] bombPos = _logic.Bombs(gameBoard);
-                    _ = await _workerClient.BombAsync(bombPos[0], bombPos[1]);
-                    break;
-
-                case PlayState.Stone:
-                    (Side, int) move = _logic.Play(gameBoard);
-                    _ = await _workerClient.StoneAsync(move.Item1, move.Item2);
-                    break;
-            }
-        }
-
-        private PlayState GetPlayState(PlayState playState, Dot4GObj gameBoard)
-        {
-            if (gameBoard == null)
-            {
-                return ChangeState(playState, PlayState.None);
-            }
-
-            switch (gameBoard.GamePhase)
-            {
-                case GamePhase.Bomb:
-                    {
-                        var player = gameBoard.Players.Values.Where(p => p.Address == _workerClient.Account.Value).ToList();
-                        if (player.Count == 1 && player[0].Bombs > 0)
-                        {
-                            return ChangeState(playState, PlayState.Bomb);
-                        }
-                        else
-                        {
-                            return ChangeState(playState, PlayState.OpBomb);
-                        }
-                    }
-
-                case GamePhase.Play:
-                    if (gameBoard.PossibleMoves.Count() == 0 || gameBoard.Winner != null && gameBoard.Winner.Count() > 0)
-                    {
-                        return ChangeState(playState, PlayState.Finished);
-                    }
-
-                    if (gameBoard.Next == _workerClient.Account.Value)
-                    {
-                        return ChangeState(playState, PlayState.Stone);
-                    }
-                    else
-                    {
-                        return ChangeState(playState, PlayState.OpStone);
-                    }
-
-                default:
-                    return ChangeState(playState, PlayState.None);
-            }
-        }
-
-        private void WaitOnExtrinsic()
-        {
-            // wait on extrinsic
-            var running = _nodeClient.ExtrinsicManger.Running;
-            if (running.Any())
-            {
-                Log.Information("Waiting on {count} extrinsic proccesed!", running.Count());
-                while (running.Any())
-                {
-                    Thread.Sleep(1000);
-                    running = _nodeClient.ExtrinsicManger.Running;
-                }
-                Log.Information("All extrinsic proccessed!");
             }
         }
 
@@ -205,34 +129,24 @@ namespace Ajuna.Automation
             }
         }
 
-        private async Task<WorkerState> GetWorkerStateAsync(WorkerState workerState, CancellationToken token)
+        private async Task DoPlayAsync(PlayState playState, Dot4GObj gameBoard)
         {
-            // Connect
-            if (!_workerClient.IsConnected)
+            switch (playState)
             {
-                return ChangeState(workerState, WorkerState.Connect);
+                case PlayState.Bomb:
+                    int[] bombPos = _logic.Bombs(gameBoard);
+                    _ = await _workerClient.BombAsync(bombPos[0], bombPos[1]);
+                    break;
+
+                case PlayState.Stone:
+                    (Side, int) move = _logic.Play(gameBoard);
+                    _ = await _workerClient.StoneAsync(move.Item1, move.Item2);
+                    break;
             }
-
-            // ShieldingKey
-            if (!_workerClient.HasShieldingKey)
-            {
-                return ChangeState(workerState, WorkerState.ShieldingKey);
-            }
-
-            var balanceWorker = await _workerClient.GetBalanceAsync();
-
-            // Faucet
-            if (balanceWorker is null || balanceWorker.Value < 100)
-            {
-                return ChangeState(workerState, WorkerState.Faucet);
-            }
-
-            return ChangeState(workerState, WorkerState.Game);
         }
 
         private async Task<NodeState> GetNodeStateAsync(NodeState nodeState, CancellationToken token)
         {
-
             // Connect
             if (!_nodeClient.IsConnected)
             {
@@ -261,19 +175,109 @@ namespace Ajuna.Automation
 
             var runnerState = await _nodeClient.GetRunnerStateAsync(runnerId, token);
 
+            Log.Debug("Runner ID {id} with {state}", runnerId, runnerState);
+
             if (runnerState == null)
             {
                 return ChangeState(nodeState, NodeState.Wait);
             }
 
             // Worker, Play & Finished
-            return runnerState.Value switch
+            switch(runnerState.Value)
             {
-                RunnerState.Queued => ChangeState(nodeState, NodeState.Worker),
-                RunnerState.Accepted => ChangeState(nodeState, NodeState.Play),
-                RunnerState.Finished => ChangeState(nodeState, NodeState.Finished),
-                _ => NodeState.None,
+                case RunnerState.Queued:
+                    return ChangeState(nodeState, NodeState.Worker);
+
+                case RunnerState.Accepted: 
+                    return ChangeState(nodeState, NodeState.Play);
+
+                case RunnerState.Finished:
+                    return ChangeState(nodeState, NodeState.Finished);
+
+                default: 
+                    return ChangeState(nodeState, NodeState.None);
             };
+        }
+
+        private async Task<WorkerState> GetWorkerStateAsync(WorkerState workerState, CancellationToken token)
+        {
+            // Connect
+            if (!_workerClient.IsConnected)
+            {
+                return ChangeState(workerState, WorkerState.Connect);
+            }
+
+            // ShieldingKey
+            if (!_workerClient.HasShieldingKey)
+            {
+                return ChangeState(workerState, WorkerState.ShieldingKey);
+            }
+
+            var balanceWorker = await _workerClient.GetBalanceAsync();
+
+            // Faucet
+            if (balanceWorker is null || balanceWorker.Value < 100)
+            {
+                return ChangeState(workerState, WorkerState.Faucet);
+            }
+
+            return ChangeState(workerState, WorkerState.Game);
+        }
+
+        private PlayState GetPlayState(PlayState playState, Dot4GObj gameBoard)
+        {
+            if (gameBoard == null)
+            {
+                return ChangeState(playState, PlayState.None);
+            }
+
+            switch (gameBoard.GamePhase)
+            {
+                case GamePhase.Bomb:
+
+                    var player = gameBoard.Players.Values.Where(p => p.Address == _workerClient.Account.Value).ToList();
+                    
+                    if (player.Count == 1 && player[0].Bombs > 0)
+                    {
+                        return ChangeState(playState, PlayState.Bomb);
+                    }
+
+                    return ChangeState(playState, PlayState.OpBomb);
+
+                case GamePhase.Play:
+                    
+                    if (gameBoard.PossibleMoves.Count() == 0 || gameBoard.Winner != null && gameBoard.Winner.Count() > 0)
+                    {
+                        return ChangeState(playState, PlayState.Finished);
+                    }
+
+                    if (gameBoard.Next == _workerClient.Account.Value)
+                    {
+                        return ChangeState(playState, PlayState.Stone);
+                    }
+
+                    return ChangeState(playState, PlayState.OpStone);
+
+
+                default:
+                    return ChangeState(playState, PlayState.None);
+            }
+        }
+
+        private void WaitOnExtrinsic()
+        {
+            // wait on extrinsic
+            var running = _nodeClient.ExtrinsicManger.Running;
+            if (running.Any())
+            {
+                Log.Information("Waiting on {count} extrinsic proccesed!", running.Count());
+                while (running.Any())
+                {
+                    Thread.Sleep(1000);
+                    running = _nodeClient.ExtrinsicManger.Running;
+                }
+                Log.Information("All extrinsic proccessed!");
+            }
         }
 
         private T ChangeState<T>(T oldState, T newState)
@@ -289,17 +293,20 @@ namespace Ajuna.Automation
             }
 
             var key = oldState.GetType().Name + "_" + oldState.ToString();
+            var elapsedMs = _stopwatch.ElapsedMilliseconds;
             if (_tracker.TryGetValue(key, out long[] values))
             {
                 values[0] = values[0] + 1;
-                values[1] = values[1] + _stopwatch.ElapsedMilliseconds;
+                values[1] = values[1] + elapsedMs;
                 _tracker[key] = values;
             }
             else
             {
-                _tracker.Add(key, new long[] { 1, _stopwatch.ElapsedMilliseconds });
+                _tracker.Add(key, new long[] { 1, elapsedMs });
             }
             _stopwatch.Restart();
+
+            Log.Debug("{name} = {state1} transtion {state2} in {ms} sec", oldState.GetType().Name, newState, oldState, (double)elapsedMs/1000);
 
             return newState;
         }

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Ajuna.Automation
+namespace Ajuna.Automation.Model
 {
     public class QueueInfo
     {
@@ -18,12 +18,12 @@ namespace Ajuna.Automation
 
         public bool IsSuccess => State == "Finalized";
 
-        public bool IsFail => State == "Invalid" 
+        public bool IsFail => State == "Invalid"
                            || State == "Dropped";
 
         public bool IsRunning => !IsSuccess && !IsFail;
 
-        public bool IsFinish =>  IsSuccess || IsFail;
+        public bool IsFinish => IsSuccess || IsFail;
 
         public double TimeElapsed => DateTime.Now.Subtract(LastUpdated).TotalSeconds;
 
@@ -42,7 +42,7 @@ namespace Ajuna.Automation
         }
 
     }
-    
+
     public class ExtrinsicManager
     {
         private readonly int _ttl;
@@ -88,7 +88,7 @@ namespace Ajuna.Automation
                 }
             }
 
-            foreach(var key in toRemove)
+            foreach (var key in toRemove)
             {
                 _data.Remove(key);
             }
