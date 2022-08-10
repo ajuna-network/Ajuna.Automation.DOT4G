@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 namespace Ajuna.Automation
 {
 
-    public class Bot
+    public class PlayBot
     {
         private readonly NodeClient _nodeClient;
         private readonly WorkerClient _workerClient;
@@ -28,7 +28,7 @@ namespace Ajuna.Automation
         private (U32?, RunnerState) _currentRunner;
         private Dot4GObj? _gameBoard;
 
-        public Bot(NodeClient nodeClient, WorkerClient workerClient, IBotAI logic)
+        public PlayBot(NodeClient nodeClient, WorkerClient workerClient, IBotAI logic)
         {
             _nodeClient = nodeClient;
             _workerClient = workerClient;
@@ -100,7 +100,7 @@ namespace Ajuna.Automation
                     break;
 
                 case NodeState.Finished:
-                    var downTime = 60000;
+                    var downTime = 10000;
                     Log.Information("Downtime for {value} sec.", (double)downTime / 1000);
                     Thread.Sleep(downTime);
                     break;

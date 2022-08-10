@@ -1,6 +1,8 @@
 ﻿using Ajuna.Automation.AI;
+using Ajuna.Automation.Enums;
 using Ajuna.Automation.Model;
 using Ajuna.NetApi;
+using Ajuna.NetApi.Model.Types;
 using Serilog;
 using System;
 using System.Threading;
@@ -52,23 +54,47 @@ namespace Ajuna.Automation
 
         private static async Task MainAsync(CancellationToken token)
         {
+            ModeType modeType = ModeType.Play;
+
+            Account account = RandomAccount();
+
+            switch (modeType)
+            {
+                case ModeType.Balance:
+                    await BalanceStressAsync(account, token);
+                    break;
+
+                case ModeType.Play:
+                    await PlayAsync(account, token);
+                    break;
+            }
+        }
+
+        private static Account RandomAccount()
+        {
             var randomBytes = new byte[16];
             _random.NextBytes(randomBytes);
-
             var mnemonic = string.Join(' ', Mnemonic.MnemonicFromEntropy(randomBytes, Mnemonic.BIP39Wordlist.English));
-            var account = Mnemonic.GetAccountFromMnemonic(mnemonic, "aA1234dd", Ajuna.NetApi.Model.Types.KeyType.Sr25519);
+            return Mnemonic.GetAccountFromMnemonic(mnemonic, "aA1234dd", Ajuna.NetApi.Model.Types.KeyType.Sr25519);
+        }
 
+        private static async Task BalanceStressAsync(Account account, CancellationToken token)
+        {
+            var workerClient = new WorkerClient(account, WORKER_URL, SHARD, MRENCLAVE);
+
+            var client = new WorkerBot(workerClient);
+            await client.RunAsync(token);
+        }
+
+        private static async Task PlayAsync(Account account, CancellationToken token)
+        {
             var nodeClient = new NodeClient(account, NODE_URL);
             var workerClient = new WorkerClient(account, WORKER_URL, SHARD, MRENCLAVE);
 
             var logic = new StraightAI();
 
-            var client = new Bot(nodeClient, workerClient, logic);
-
+            var client = new PlayBot(nodeClient, workerClient, logic);
             await client.RunAsync(token);
-
         }
-
-
     }
 }

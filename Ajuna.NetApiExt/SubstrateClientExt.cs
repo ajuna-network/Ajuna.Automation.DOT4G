@@ -30,6 +30,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Diagnostics;
+
 namespace Ajuna.NetApi
 {
 
@@ -146,6 +148,8 @@ namespace Ajuna.NetApi
         /// </summary>
         public Ajuna.NetApi.Model.PalletBoard.BoardStorage BoardStorage;
 
+        public Stopwatch _stopWatch;
+
         public SubstrateClientExt(System.Uri uri) :
                 base(uri)
         {
@@ -171,6 +175,8 @@ namespace Ajuna.NetApi
             this.TeerexStorage = new Ajuna.NetApi.Model.PalletTeerex.TeerexStorage(this);
             this.SidechainStorage = new Ajuna.NetApi.Model.PalletSidechain.SidechainStorage(this);
             this.BoardStorage = new Ajuna.NetApi.Model.PalletBoard.BoardStorage(this);
+
+            _stopWatch = new Stopwatch();
         }
 
         public enum Wrapped
@@ -255,12 +261,12 @@ namespace Ajuna.NetApi
         public async Task<string> BalanceTransferAsync(Account fromAccount, Account toAccount, uint amount, RSAParameters shieldingKey, string shardHex, string mrenclaveHex)
         {
             EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(fromAccount, TrustedGetter.Nonce);
-            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex);
+            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
             if (Unwrap(Wrapped.Nonce, nonceValue, out U32 nonce))
             {
                 Log.Debug("Account[{value}]({nonce}) transfers {amount} to Account[{value}]", fromAccount.Value, nonce.Value, amount, toAccount.Value);
                 EnumTrustedOperation tOpTransfer = Wrapper.CreateCallBalanceTransfer(fromAccount, toAccount, amount, nonce.Value, mrenclaveHex, shardHex);
-                var returnValue = await ExecuteTrustedOperationAsync(tOpTransfer, shieldingKey, shardHex);
+                var returnValue = await ExecuteTrustedOperationAsync(tOpTransfer, shieldingKey, shardHex, "TrustedCall.BalanceTransfer");
                 if (Unwrap(Wrapped.Hash, returnValue, out H256 value))
                 {
                     //Logger.Info($"Hash is {Utils.Bytes2HexString(value.Value.Bytes)}");
@@ -274,12 +280,12 @@ namespace Ajuna.NetApi
         public async Task<string> PlayTurnAsync(Account account, SgxGameTurn turn, RSAParameters shieldingKey, string shardHex, string mrenclaveHex)
         {
             EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(account, TrustedGetter.Nonce);
-            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex);
+            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
             if (Unwrap(Wrapped.Nonce, nonceValue, out U32 nonce))
             {
                 Log.Debug("Account[{value}]({nonce}) play {name}", account.Value, nonce.Value, turn.GetType().Name);
                 EnumTrustedOperation tOpPlayTurn = Wrapper.CreateCallPlayTurn(account, turn, nonce.Value, mrenclaveHex, shardHex);
-                var returnValue = await ExecuteTrustedOperationAsync(tOpPlayTurn, shieldingKey, shardHex);
+                var returnValue = await ExecuteTrustedOperationAsync(tOpPlayTurn, shieldingKey, shardHex, "TrustedCall.BoardPlayTurn");
                 if (Unwrap(Wrapped.Hash, returnValue, out H256 value))
                 {
                     //Logger.Info($"Hash is {Utils.Bytes2HexString(value.Value.Bytes)}");
@@ -293,7 +299,7 @@ namespace Ajuna.NetApi
         public async Task<U32> GetNonce(Account account, RSAParameters shieldingKey, string shardHex)
         {
             EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(account, TrustedGetter.Nonce);
-            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex);
+            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
             if (Unwrap(Wrapped.Nonce, nonceValue, out U32 nonce))
             {
                 return nonce;
@@ -304,7 +310,7 @@ namespace Ajuna.NetApi
         public async Task<BoardGame> GetBoardGameAsync(Account account, RSAParameters shieldingKey, string shardHex)
         {
             EnumTrustedOperation tOpBoard = Wrapper.CreateGetter(account, TrustedGetter.Board);
-            var boardValue = await ExecuteTrustedOperationAsync(tOpBoard, shieldingKey, shardHex);
+            var boardValue = await ExecuteTrustedOperationAsync(tOpBoard, shieldingKey, shardHex, "TrustedGetter.Board");
             if (Unwrap(Wrapped.Board, boardValue, out BoardGame boardGame))
             {
                 return boardGame;
@@ -316,7 +322,7 @@ namespace Ajuna.NetApi
         public async Task<Balance> GetFreeBalanceAsync(Account account, RSAParameters shieldingKey, string shardHex)
         {
             EnumTrustedOperation tOpPreBalance = Wrapper.CreateGetter(account, TrustedGetter.FreeBalance);
-            var balanceValuePre = await ExecuteTrustedOperationAsync(tOpPreBalance, shieldingKey, shardHex);
+            var balanceValuePre = await ExecuteTrustedOperationAsync(tOpPreBalance, shieldingKey, shardHex, "TrustedGetter.FreeBalance");
             if (Unwrap(Wrapped.Balance, balanceValuePre, out Balance balance))
             {
                 return balance;
@@ -324,7 +330,7 @@ namespace Ajuna.NetApi
             return null;
         }
 
-        public async Task<RpcReturnValue> ExecuteTrustedOperationAsync(EnumTrustedOperation trustedOperation, RSAParameters shieldingKey, string shardHex)
+        public async Task<RpcReturnValue> ExecuteTrustedOperationAsync(EnumTrustedOperation trustedOperation, RSAParameters shieldingKey, string shardHex, string trustedOperationType)
         {
             var cypherText = Wrapper.SignTrustedOperation(shieldingKey, trustedOperation);
 
@@ -340,7 +346,11 @@ namespace Ajuna.NetApi
 
             var parameters = Utils.Bytes2HexString(request.Encode());
 
+            _stopWatch.Start();
             var result = await InvokeAsync<string>("author_submitAndWatchExtrinsic", new object[] { parameters }, CancellationToken.None);
+            _stopWatch.Stop();
+            Log.Debug("RPC author_submitAndWatchExtrinsic {name}({type}) took {time}", trustedOperationType, trustedOperation.Value, (double)_stopWatch.ElapsedMilliseconds / 1000);
+            _stopWatch.Reset();
 
             var returnValue = new RpcReturnValue();
             returnValue.Create(result);
