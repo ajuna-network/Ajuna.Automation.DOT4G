@@ -11,7 +11,7 @@ namespace Ajuna.Automation
     partial class Program
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://45cc-84-75-48-249.ngrok.io";
+        private const string WORKER_URL = "ws://b241-84-75-48-249.ngrok.io";
         private const string SHARD = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
         private const string MRENCLAVE = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
 

@@ -3,6 +3,7 @@ using Ajuna.NetApi.Model.Base;
 using Ajuna.NetApi.Model.Dot4gravity;
 using Ajuna.NetApi.Model.PalletBoard;
 using Ajuna.NetApi.Model.SpCore;
+using Ajuna.NetApi.Model.Types.Base;
 using Ajuna.NetApi.Model.Types.Primitive;
 using System;
 using System.Collections.Generic;
@@ -22,6 +23,8 @@ namespace Ajuna.NetApiExt.Model.AjunaWorker.Dot4G
         public Dictionary<string, Dot4GPlayer> Players { get; set; } = new Dictionary<string, Dot4GPlayer>();
 
         public GamePhase GamePhase { get; }
+
+        public Dot4GMove LastTurn { get; }
 
         public string Next { get; }
 
@@ -86,9 +89,25 @@ namespace Ajuna.NetApiExt.Model.AjunaWorker.Dot4G
                     }
                 }
             }
-
+            LastTurn = GetLastTurn(boardGame.State.LastMove); 
             PossibleMoves = DropStoneList();
             EmptySlots = GetCoords(Cell.Empty);
+        }
+
+        private Dot4GMove GetLastTurn(BaseOpt<LastMove> lastMove)
+        {
+            if (lastMove.OptionFlag == false)
+            {
+                return null;
+            }
+
+            return new Dot4GMove()
+            {
+                Id = 0,
+                PlayerAddress = Utils.GetAddressFrom(lastMove.Value.Player.Value.Bytes),
+                Side = lastMove.Value.Side.Value,
+                Column = lastMove.Value.Position.Value,
+            };
         }
 
         public bool ValidateBomb(int posX, int posY)
