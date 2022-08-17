@@ -18,29 +18,21 @@ namespace Ajuna.Automation
         private readonly Dictionary<string, long[]> _tracker;
         private readonly Stopwatch _stopwatch;
 
-        private Balance? _workerBalance;
-
         public WorkerBot(WorkerClient workerClient)
         {
             _workerClient = workerClient;
             _tracker = new Dictionary<string, long[]>();
             _stopwatch = new Stopwatch();
-
-            _workerBalance = null;
         }
 
         internal async Task RunAsync(CancellationToken token)
         {
-            var SleepTime = 1000;
-
             WorkerState workerState = WorkerState.None;
 
             while (!token.IsCancellationRequested)
             {
                 workerState = await GetWorkerStateAsync(workerState, token);
                 await DoWorkerAsync(workerState, token);
-
-                //Thread.Sleep(SleepTime);
             }
         }
 
@@ -61,8 +53,12 @@ namespace Ajuna.Automation
                     break;
 
                 case WorkerState.Faucet:
-                case WorkerState.None:
                     _ = await _workerClient.FaucetAsync();
+                    break;
+
+                case WorkerState.Game:
+                case WorkerState.None:
+                    _ = await _workerClient.SendAsync(Client.Alice, 100);
                     break;
 
                 default:
@@ -87,13 +83,15 @@ namespace Ajuna.Automation
             var balanceWorker = await _workerClient.GetBalanceAsync();
 
             // Faucet
-            if (balanceWorker is null 
-             || _workerBalance is null
-             || (balanceWorker.Value != _workerBalance.Value 
-                && workerState != WorkerState.Faucet))
+            if (balanceWorker is null || balanceWorker.Value < 1000)
             {
-                _workerBalance = balanceWorker;
                 return ChangeState(workerState, WorkerState.Faucet, $"balance:{balanceWorker?.Value}");
+            }
+
+            // Game
+            if (workerState == WorkerState.None)
+            {
+                return ChangeState(workerState, WorkerState.Game, $"balance:{balanceWorker?.Value}");
             }
 
             return ChangeState(workerState, WorkerState.None, $"balance:{balanceWorker?.Value}");

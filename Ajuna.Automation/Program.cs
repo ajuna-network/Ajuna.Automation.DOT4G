@@ -13,9 +13,9 @@ namespace Ajuna.Automation
     partial class Program
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://b241-84-75-48-249.ngrok.io";
-        private const string SHARD = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
-        private const string MRENCLAVE = "2WTKarArPH1jxUCCDMbLvmDKG9UiPZxfBrb2eQUWyU3K";
+        private const string WORKER_URL = "ws://2d124076029f.ngrok.io";
+        private const string SHARD = "2nwiSmLC2aqdZhBt2aAKPSL2kqCkcv9df4UthNixMU64";
+        private const string MRENCLAVE = "2nwiSmLC2aqdZhBt2aAKPSL2kqCkcv9df4UthNixMU64";
 
         private static Random _random = new Random();
 
@@ -23,7 +23,7 @@ namespace Ajuna.Automation
         {
             // configure serilog
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
+                .MinimumLevel.Information()
                 .WriteTo
                 .Console()
                 .CreateLogger();
@@ -54,9 +54,11 @@ namespace Ajuna.Automation
 
         private static async Task MainAsync(CancellationToken token)
         {
-            ModeType modeType = ModeType.Play;
+            ModeType modeType = ModeType.Balance;
 
             Account account = RandomAccount();
+
+            Log.Information("My Account is {address}", account.Value);
 
             switch (modeType)
             {
@@ -75,7 +77,7 @@ namespace Ajuna.Automation
             var randomBytes = new byte[16];
             _random.NextBytes(randomBytes);
             var mnemonic = string.Join(' ', Mnemonic.MnemonicFromEntropy(randomBytes, Mnemonic.BIP39Wordlist.English));
-            return Mnemonic.GetAccountFromMnemonic(mnemonic, "aA1234dd", Ajuna.NetApi.Model.Types.KeyType.Sr25519);
+            return Mnemonic.GetAccountFromMnemonic(mnemonic, "aA1234dd", KeyType.Sr25519);
         }
 
         private static async Task BalanceStressAsync(Account account, CancellationToken token)

@@ -52,6 +52,22 @@ namespace Ajuna.Automation.Model
             return true;
         }
 
+        public async Task<bool> SendAsync(Account to, uint amount)
+        {
+            if (!IsConnected || !HasShieldingKey)
+            {
+                return false;
+            }
+
+            var hash = await client.BalanceTransferAsync(Account, to, amount, _shieldingKey, _shardHex, _mrenclaveHex);
+            if (hash == null)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         public async Task<Balance?> GetBalanceAsync()
         {
             if (!IsConnected || !HasShieldingKey)
