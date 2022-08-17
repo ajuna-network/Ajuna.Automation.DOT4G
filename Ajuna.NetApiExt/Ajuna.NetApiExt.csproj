@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Ajuna.NetApi" Version="0.1.19" />
+    <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
   </ItemGroup>
 
 </Project>

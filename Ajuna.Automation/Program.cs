@@ -13,7 +13,7 @@ namespace Ajuna.Automation
     partial class Program
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://2d124076029f.ngrok.io";
+        private const string WORKER_URL = "ws://4025bdb29c3b.ngrok.io";
         private const string SHARD = "2nwiSmLC2aqdZhBt2aAKPSL2kqCkcv9df4UthNixMU64";
         private const string MRENCLAVE = "2nwiSmLC2aqdZhBt2aAKPSL2kqCkcv9df4UthNixMU64";
 
@@ -54,16 +54,23 @@ namespace Ajuna.Automation
 
         private static async Task MainAsync(CancellationToken token)
         {
-            ModeType modeType = ModeType.Balance;
+            ModeType modeType = ModeType.BalanceOnNode;
 
-            Account account = RandomAccount();
-
+            Account account = Client.RandomAccount();
             Log.Information("My Account is {address}", account.Value);
 
             switch (modeType)
             {
-                case ModeType.Balance:
-                    await BalanceStressAsync(account, token);
+                case ModeType.RandomAccounts:
+                    await NodeRandomAccountsAsync(account, token);
+                    break;
+
+                case ModeType.BalanceOnNode:
+                    await BalanceNodeStressAsync(account, token);
+                    break;
+
+                case ModeType.BalanceOnWorker:
+                    await BalanceWorkerStressAsync(account, token);
                     break;
 
                 case ModeType.Play:
@@ -72,19 +79,27 @@ namespace Ajuna.Automation
             }
         }
 
-        private static Account RandomAccount()
+        private static async Task NodeRandomAccountsAsync(Account account, CancellationToken token)
         {
-            var randomBytes = new byte[16];
-            _random.NextBytes(randomBytes);
-            var mnemonic = string.Join(' ', Mnemonic.MnemonicFromEntropy(randomBytes, Mnemonic.BIP39Wordlist.English));
-            return Mnemonic.GetAccountFromMnemonic(mnemonic, "aA1234dd", KeyType.Sr25519);
+            var nodeClient = new NodeClient(account, NODE_URL);
+
+            var client = new AccountBot(nodeClient);
+            await client.RunAsync(token);
         }
 
-        private static async Task BalanceStressAsync(Account account, CancellationToken token)
+        private static async Task BalanceNodeStressAsync(Account account, CancellationToken token)
+        {
+            var nodeClient = new NodeClient(account, NODE_URL);
+
+            var client = new BalanceNodeBot(nodeClient);
+            await client.RunAsync(token);
+        }
+
+        private static async Task BalanceWorkerStressAsync(Account account, CancellationToken token)
         {
             var workerClient = new WorkerClient(account, WORKER_URL, SHARD, MRENCLAVE);
 
-            var client = new WorkerBot(workerClient);
+            var client = new BalanceWorkerBot(workerClient);
             await client.RunAsync(token);
         }
 

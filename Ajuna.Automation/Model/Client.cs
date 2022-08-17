@@ -22,7 +22,7 @@ namespace Ajuna.Automation.Model
         public static MiniSecret MiniSecretAlice => new MiniSecret(Utils.HexToByteArray("0xe5be9a5092b81bca64be81d212e7f2f9eba183bb7a90954f7b76361f6edb5c0a"), ExpandMode.Ed25519);
         public static Account Alice => Account.Build(KeyType.Sr25519, MiniSecretAlice.ExpandToSecret().ToBytes(), MiniSecretAlice.GetPair().Public.Key);
 
-        public Account Account { get; }
+        public Account Account { get; set; }
 
         public ExtrinsicManager ExtrinsicManger { get; }
 
@@ -59,5 +59,13 @@ namespace Ajuna.Automation.Model
             return true;
         }
 
+        public static Account RandomAccount()
+        {
+            Random random = new Random();
+            var randomBytes = new byte[16];
+            random.NextBytes(randomBytes);
+            var mnemonic = string.Join(' ', Mnemonic.MnemonicFromEntropy(randomBytes, Mnemonic.BIP39Wordlist.English));
+            return Mnemonic.GetAccountFromMnemonic(mnemonic, "aA1234dd", KeyType.Sr25519);
+        }
     }
 }

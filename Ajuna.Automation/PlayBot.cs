@@ -168,7 +168,7 @@ namespace Ajuna.Automation
                 return ChangeState(nodeState, NodeState.Connect);
             }
 
-            var accountInfo = await _nodeClient.GetBalanceNodeAsync(token);
+            var accountInfo = await _nodeClient.GetBalanceNodeAsync(true, token);
 
             // Faucet
             if (accountInfo == null || accountInfo.Data == null || accountInfo.Data.Free.Value < 1000000000000)

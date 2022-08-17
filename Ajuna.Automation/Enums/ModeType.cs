@@ -4,6 +4,8 @@
     {
         None,
         Play,
-        Balance,
+        BalanceOnWorker,
+        RandomAccounts,
+        BalanceOnNode,
     }
 }

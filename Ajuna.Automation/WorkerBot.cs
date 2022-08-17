@@ -11,14 +11,14 @@ using System.Threading.Tasks;
 
 namespace Ajuna.Automation
 {
-    internal class WorkerBot
+    internal class BalanceWorkerBot
     {
         private readonly WorkerClient _workerClient;
 
         private readonly Dictionary<string, long[]> _tracker;
         private readonly Stopwatch _stopwatch;
 
-        public WorkerBot(WorkerClient workerClient)
+        public BalanceWorkerBot(WorkerClient workerClient)
         {
             _workerClient = workerClient;
             _tracker = new Dictionary<string, long[]>();

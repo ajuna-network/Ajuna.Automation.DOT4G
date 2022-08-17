@@ -60,7 +60,7 @@ namespace Ajuna.Automation.Model
         {
             _data.Add(subscription, new QueueInfo(extrinsicType));
 
-            if (_data.Count > 100)
+            if (_data.Count > 200)
             {
                 Clean();
             }
@@ -70,7 +70,7 @@ namespace Ajuna.Automation.Model
         {
             if (!_data.TryGetValue(id, out QueueInfo? queueInfo))
             {
-                Log.Warning("Retrieving unregeistred or removed subscriptionId {id}", id);
+                Log.Debug("QueueInfo not available for subscriptionId {id}", id);
                 return queueInfo;
             }
 
@@ -93,7 +93,7 @@ namespace Ajuna.Automation.Model
                 _data.Remove(key);
             }
 
-            Log.Information("Removing {count} etrinsics", toRemove);
+            Log.Debug("Removing {count} etrinsics", toRemove.Count());
         }
 
         /// <summary>
@@ -105,7 +105,7 @@ namespace Ajuna.Automation.Model
         {
             if (!_data.TryGetValue(subscriptionId, out QueueInfo queueInfo))
             {
-                Log.Warning("Unregistred or removed subscriptionId {id} got update", subscriptionId, extrinsicUpdate.ExtrinsicState);
+                Log.Debug("Unregistred or removed subscriptionId {id} got update", subscriptionId, extrinsicUpdate.ExtrinsicState);
                 return;
             }
 
