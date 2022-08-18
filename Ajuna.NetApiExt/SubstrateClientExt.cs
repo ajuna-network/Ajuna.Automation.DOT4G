@@ -37,7 +37,7 @@ namespace Ajuna.NetApi
 
     public sealed class SubstrateClientExt : Ajuna.NetApi.SubstrateClient
     {
-        public const int MAX_EXTRINSIC_LIMIT = 1000;
+        public const int MAX_EXTRINSIC_LIMIT = 2000;
 
         public bool RPCDelayed { get; set; } = false;
 
