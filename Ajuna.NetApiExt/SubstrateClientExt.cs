@@ -38,6 +38,9 @@ namespace Ajuna.NetApi
     public sealed class SubstrateClientExt : Ajuna.NetApi.SubstrateClient
     {
         public const int MAX_EXTRINSIC_LIMIT = 1000;
+
+        public bool RPCDelayed { get; set; } = false;
+
         /// <summary>
         /// StorageKeyDict for key definition informations.
         /// </summary>
@@ -352,6 +355,7 @@ namespace Ajuna.NetApi
             if (_stopWatch.ElapsedMilliseconds > MAX_EXTRINSIC_LIMIT)
             {
                 Log.Warning("RPC author_submitAndWatchExtrinsic {name}({type}) took {time}", trustedOperationType, trustedOperation.Value, (double)_stopWatch.ElapsedMilliseconds / 1000);
+                RPCDelayed = true;
             }
             _stopWatch.Reset();
 

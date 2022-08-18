@@ -13,7 +13,7 @@ namespace Ajuna.Automation
     partial class Program
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://4025bdb29c3b.ngrok.io";
+        private const string WORKER_URL = "ws://500b6e343ff5.ngrok.io";
         private const string SHARD = "2nwiSmLC2aqdZhBt2aAKPSL2kqCkcv9df4UthNixMU64";
         private const string MRENCLAVE = "2nwiSmLC2aqdZhBt2aAKPSL2kqCkcv9df4UthNixMU64";
 
@@ -23,7 +23,7 @@ namespace Ajuna.Automation
         {
             // configure serilog
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
+                .MinimumLevel.Debug()
                 .WriteTo
                 .Console()
                 .CreateLogger();
@@ -54,7 +54,7 @@ namespace Ajuna.Automation
 
         private static async Task MainAsync(CancellationToken token)
         {
-            ModeType modeType = ModeType.BalanceOnNode;
+            ModeType modeType = ModeType.BalanceOnWorker;
 
             Account account = Client.RandomAccount();
             Log.Information("My Account is {address}", account.Value);

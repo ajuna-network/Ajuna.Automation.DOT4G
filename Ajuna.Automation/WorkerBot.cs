@@ -74,6 +74,12 @@ namespace Ajuna.Automation
                 return ChangeState(workerState, WorkerState.Connect);
             }
 
+            // check for slow mode bug
+            if (_workerClient.client.RPCDelayed)
+            {
+                return ChangeState(workerState, WorkerState.Disconnect);
+            }
+
             // ShieldingKey
             if (!_workerClient.HasShieldingKey)
             {

@@ -42,6 +42,7 @@ namespace Ajuna.Automation.Model
         {
             if (!IsConnected)
             {
+                client.RPCDelayed = false;
                 await client.ConnectAsync(useMetadata, standardSubstrate, token);
             }
 
