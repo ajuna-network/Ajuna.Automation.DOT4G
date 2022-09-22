@@ -58,7 +58,37 @@ namespace Ajuna.NetApiExt.Model.AjunaWorker.Helper
             return trustedOperation;
         }
 
-        public static EnumTrustedOperation CreateGetter(Account accountName, TrustedGetter trustedGetter)
+        //public static EnumTrustedOperation CreateGetter(Account accountName, TrustedGetter trustedGetter)
+        //{
+        //    var account = new AccountId32();
+        //    account.Create(accountName.Bytes);
+
+        //    var enumTrustedGetter = new EnumTrustedGetter();
+        //    enumTrustedGetter.Create(trustedGetter, account);
+
+        //    return GetEnumTrustedOperation(accountName, enumTrustedGetter);
+        //}
+
+        public static EnumGetter GetEnumGetter(Account account, EnumTrustedGetter trustedGetter)
+        {
+            var signature = new Signature64();
+            var signatureArray = Schnorrkel.Sr25519v091.SignSimple(Utils.GetPublicKeyFrom(account.Value), account.PrivateKey, trustedGetter.Encode());
+            signature.Create(signatureArray);
+
+            var enumMultiSignature = new EnumMultiSignature();
+            enumMultiSignature.Create(MultiSignature.Sr25519, signature);
+
+            var trustedGetterSigned = new TrustedGetterSigned();
+            trustedGetterSigned.Getter = trustedGetter;
+            trustedGetterSigned.Signature = enumMultiSignature;
+
+            var getter = new EnumGetter();
+            getter.Create(Getter.Trusted, trustedGetterSigned);
+
+            return getter;
+        }
+
+        public static EnumGetter CreateGetter(Account accountName, TrustedGetter trustedGetter)
         {
             var account = new AccountId32();
             account.Create(accountName.Bytes);
@@ -66,7 +96,7 @@ namespace Ajuna.NetApiExt.Model.AjunaWorker.Helper
             var enumTrustedGetter = new EnumTrustedGetter();
             enumTrustedGetter.Create(trustedGetter, account);
 
-            return GetEnumTrustedOperation(accountName, enumTrustedGetter);
+            return GetEnumGetter(accountName, enumTrustedGetter);
         }
 
         public static EnumTrustedOperation CreateCallPlayTurn(Account account, SgxGameTurn turn, uint nonce, string mrenclaveHex, string shardHex)

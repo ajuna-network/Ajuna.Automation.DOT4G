@@ -197,56 +197,102 @@ namespace Ajuna.NetApi
             switch (returnValue.DirectRequestStatus.Value)
             {
                 case DirectRequestStatus.Ok:
+                    {
+                        var valueBytes = returnValue.Value.Value.Select(p => p.Value).ToArray();
+
+                        switch (wrapped)
+                        {
+                            case Wrapped.Nonce:
+                                var nonceWrapped = new BaseOpt<BaseVec<U8>>();
+                                nonceWrapped.Create(valueBytes);
+                                if (nonceWrapped.OptionFlag)
+                                {
+                                    var bytes = nonceWrapped.Value.Value.Select(p => p.Value).ToArray();
+                                    result.Create(bytes);
+                                    return true;
+                                }
+                                break;
+
+                            case Wrapped.Balance:
+                                var balanceWrapped = new BaseOpt<BaseVec<U8>>();
+                                balanceWrapped.Create(valueBytes);
+                                if (balanceWrapped.OptionFlag)
+                                {
+                                    var bytes = balanceWrapped.Value.Value.Select(p => p.Value).ToArray();
+                                    result.Create(bytes);
+                                    return true;
+                                }
+                                break;
+
+                            case Wrapped.Hash:
+                                result.Create(valueBytes);
+                                return true;
+
+                            case Wrapped.Board:
+                                var boardWrapped = new BaseOpt<BaseVec<U8>>();
+                                boardWrapped.Create(valueBytes);
+                                if (boardWrapped.OptionFlag)
+                                {
+                                    var bytes = boardWrapped.Value.Value.Select(p => p.Value).ToArray();
+                                    result.Create(bytes);
+                                    return true;
+                                }
+                                else
+                                {
+                                    return false;
+                                }
+                        }
+                    }
                     break;
 
                 case DirectRequestStatus.TrustedOperationStatus:
-
-                    var valueBytes = returnValue.Value.Value.Select(p => p.Value).ToArray();
-
-                    switch (wrapped)
                     {
-                        case Wrapped.Nonce:
-                            var nonceWrapped = new BaseOpt<BaseVec<U8>>();
-                            nonceWrapped.Create(valueBytes);
-                            if (nonceWrapped.OptionFlag)
-                            {
-                                var bytes = nonceWrapped.Value.Value.Select(p => p.Value).ToArray();
-                                result.Create(bytes);
-                                return true;
-                            }
-                            break;
+                        var valueBytes = returnValue.Value.Value.Select(p => p.Value).ToArray();
 
-                        case Wrapped.Balance:
-                            var balanceWrapped = new BaseOpt<BaseVec<U8>>();
-                            balanceWrapped.Create(valueBytes);
-                            if (balanceWrapped.OptionFlag)
-                            {
-                                var bytes = balanceWrapped.Value.Value.Select(p => p.Value).ToArray();
-                                result.Create(bytes);
-                                return true;
-                            }
-                            break;
+                        switch (wrapped)
+                        {
+                        //    case Wrapped.Nonce:
+                        //        var nonceWrapped = new BaseOpt<BaseVec<U8>>();
+                        //        nonceWrapped.Create(valueBytes);
+                        //        if (nonceWrapped.OptionFlag)
+                        //        {
+                        //            var bytes = nonceWrapped.Value.Value.Select(p => p.Value).ToArray();
+                        //            result.Create(bytes);
+                        //            return true;
+                        //        }
+                        //        break;
 
-                        case Wrapped.Hash:
-                            result.Create(valueBytes);
-                            return true;
+                        //    case Wrapped.Balance:
+                        //        var balanceWrapped = new BaseOpt<BaseVec<U8>>();
+                        //        balanceWrapped.Create(valueBytes);
+                        //        if (balanceWrapped.OptionFlag)
+                        //        {
+                        //            var bytes = balanceWrapped.Value.Value.Select(p => p.Value).ToArray();
+                        //            result.Create(bytes);
+                        //            return true;
+                        //        }
+                        //        break;
 
-                        case Wrapped.Board:
-                            var boardWrapped = new BaseOpt<BaseVec<U8>>();
-                            boardWrapped.Create(valueBytes);
-                            if (boardWrapped.OptionFlag)
-                            {
-                                var bytes = boardWrapped.Value.Value.Select(p => p.Value).ToArray();
-                                result.Create(bytes);
+                            case Wrapped.Hash:
+                                result.Create(valueBytes);
                                 return true;
-                            }
-                            else
-                            {
-                                return false;
-                            }
+
+                        //    case Wrapped.Board:
+                        //        var boardWrapped = new BaseOpt<BaseVec<U8>>();
+                        //        boardWrapped.Create(valueBytes);
+                        //        if (boardWrapped.OptionFlag)
+                        //        {
+                        //            var bytes = boardWrapped.Value.Value.Select(p => p.Value).ToArray();
+                        //            result.Create(bytes);
+                        //            return true;
+                        //        }
+                        //        else
+                        //        {
+                        //            return false;
+                        //        }
+                        }
+                        throw new NotImplementedException("DirectRequestStatus.TrustedOperationStatus");
                     }
-
-
                     break;
 
                 case DirectRequestStatus.Error:
@@ -263,8 +309,11 @@ namespace Ajuna.NetApi
 
         public async Task<string> BalanceTransferAsync(Account fromAccount, Account toAccount, uint amount, RSAParameters shieldingKey, string shardHex, string mrenclaveHex)
         {
-            EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(fromAccount, TrustedGetter.Nonce);
-            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+            //EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(fromAccount, TrustedGetter.Nonce)
+            EnumGetter tOpNonce = Wrapper.CreateGetter(fromAccount, TrustedGetter.Nonce);
+            //var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+            var nonceValue = await ExecuteGetterAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+
             if (Unwrap(Wrapped.Nonce, nonceValue, out U32 nonce))
             {
                 Log.Debug("Account[{value}]({nonce}) transfers {amount} to Account[{value}]", fromAccount.Value, nonce.Value, amount, toAccount.Value);
@@ -282,8 +331,11 @@ namespace Ajuna.NetApi
 
         public async Task<string> PlayTurnAsync(Account account, SgxGameTurn turn, RSAParameters shieldingKey, string shardHex, string mrenclaveHex)
         {
-            EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(account, TrustedGetter.Nonce);
-            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+            //EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(account, TrustedGetter.Nonce);
+            EnumGetter tOpNonce = Wrapper.CreateGetter(account, TrustedGetter.Nonce);
+            //var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+            var nonceValue = await ExecuteGetterAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+
             if (Unwrap(Wrapped.Nonce, nonceValue, out U32 nonce))
             {
                 Log.Debug("Account[{value}]({nonce}) play {name}", account.Value, nonce.Value, turn.GetType().Name);
@@ -301,8 +353,11 @@ namespace Ajuna.NetApi
 
         public async Task<U32> GetNonce(Account account, RSAParameters shieldingKey, string shardHex)
         {
-            EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(account, TrustedGetter.Nonce);
-            var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+            //EnumTrustedOperation tOpNonce = Wrapper.CreateGetter(account, TrustedGetter.Nonce);
+            EnumGetter tOpNonce = Wrapper.CreateGetter(account, TrustedGetter.Nonce);
+            //var nonceValue = await ExecuteTrustedOperationAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+            var nonceValue = await ExecuteGetterAsync(tOpNonce, shieldingKey, shardHex, "TrustedGetter.Nonce");
+
             if (Unwrap(Wrapped.Nonce, nonceValue, out U32 nonce))
             {
                 return nonce;
@@ -312,8 +367,11 @@ namespace Ajuna.NetApi
 
         public async Task<BoardGame> GetBoardGameAsync(Account account, RSAParameters shieldingKey, string shardHex)
         {
-            EnumTrustedOperation tOpBoard = Wrapper.CreateGetter(account, TrustedGetter.Board);
-            var boardValue = await ExecuteTrustedOperationAsync(tOpBoard, shieldingKey, shardHex, "TrustedGetter.Board");
+            //EnumTrustedOperation tOpBoard = Wrapper.CreateGetter(account, TrustedGetter.Board);
+            EnumGetter tOpBoard = Wrapper.CreateGetter(account, TrustedGetter.Board);
+            //var boardValue = await ExecuteTrustedOperationAsync(tOpBoard, shieldingKey, shardHex, "TrustedGetter.Board");
+            var boardValue = await ExecuteGetterAsync(tOpBoard, shieldingKey, shardHex, "TrustedGetter.Board");
+
             if (Unwrap(Wrapped.Board, boardValue, out BoardGame boardGame))
             {
                 return boardGame;
@@ -324,8 +382,11 @@ namespace Ajuna.NetApi
 
         public async Task<Balance> GetFreeBalanceAsync(Account account, RSAParameters shieldingKey, string shardHex)
         {
-            EnumTrustedOperation tOpPreBalance = Wrapper.CreateGetter(account, TrustedGetter.FreeBalance);
-            var balanceValuePre = await ExecuteTrustedOperationAsync(tOpPreBalance, shieldingKey, shardHex, "TrustedGetter.FreeBalance");
+            //EnumTrustedOperation tOpPreBalance = Wrapper.CreateGetter(account, TrustedGetter.FreeBalance);
+            EnumGetter tOpPreBalance = Wrapper.CreateGetter(account, TrustedGetter.FreeBalance);
+            //var balanceValuePre = await ExecuteTrustedOperationAsync(tOpPreBalance, shieldingKey, shardHex, "TrustedGetter.FreeBalance");
+            var balanceValuePre = await ExecuteGetterAsync(tOpPreBalance, shieldingKey, shardHex, "TrustedGetter.FreeBalance");
+
             if (Unwrap(Wrapped.Balance, balanceValuePre, out Balance balance))
             {
                 return balance;
@@ -356,6 +417,42 @@ namespace Ajuna.NetApi
             {
                 Log.Warning("RPC author_submitAndWatchExtrinsic {name}({type}) took {time}", trustedOperationType, trustedOperation.Value, (double)_stopWatch.ElapsedMilliseconds / 1000);
                 RPCDelayed = true;
+            }
+            _stopWatch.Reset();
+
+            var returnValue = new RpcReturnValue();
+            returnValue.Create(result);
+
+            return returnValue;
+        }
+
+        public async Task<RpcReturnValue> ExecuteGetterAsync(EnumGetter enumGetter, RSAParameters shieldingKey, string shardHex, string trustedOperationType)
+        {
+            var cypherText = Wrapper.VecU8FromBytes(enumGetter.Encode());
+
+            // - ShardIdentifier
+            var shardId = new H256();
+            shardId.Create(Base58.Bitcoin.Decode(shardHex).ToArray());
+
+            Request request = new Request
+            {
+                Shard = shardId,
+                CypherText = cypherText
+            };
+
+            var parameters = Utils.Bytes2HexString(request.Encode());
+
+            _stopWatch.Start();
+            var result = await InvokeAsync<string>("state_executeGetter", new object[] { parameters }, CancellationToken.None);
+            _stopWatch.Stop();
+            if (_stopWatch.ElapsedMilliseconds > MAX_EXTRINSIC_LIMIT)
+            {
+                Log.Warning("RPC state_executeGetter {name}({type}) took {time}", trustedOperationType, ((TrustedGetterSigned)enumGetter.Value2).Getter.Value, (double)_stopWatch.ElapsedMilliseconds / 1000);
+                RPCDelayed = true;
+            } 
+            else
+            {
+                //Log.Debug("RPC state_executeGetter {name}({type}) took {time}", trustedOperationType, ((TrustedGetterSigned)enumGetter.Value2).Getter.Value, (double)_stopWatch.ElapsedMilliseconds / 1000);
             }
             _stopWatch.Reset();
 

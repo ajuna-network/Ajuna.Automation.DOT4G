@@ -134,7 +134,7 @@ namespace Ajuna.Automation
                 msg = " - " + msg;
             }
 
-            Log.Information("{name} = {state1} from {state2} in {ms} sec.{msg}", typeof(T).Name, newState, oldState, (double)elapsedMs / 1000, msg);
+            Log.Debug("{name} = {state1} from {state2} in {ms} sec.{msg}", typeof(T).Name, newState, oldState, (double)elapsedMs / 1000, msg);
 
             return newState;
         }
