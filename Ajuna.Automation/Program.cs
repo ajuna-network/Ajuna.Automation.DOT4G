@@ -12,10 +12,10 @@ namespace Ajuna.Automation
 {
     partial class Program
     {
-        private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://bac8e33fd98e.ngrok.io";
-        private const string SHARD = "4zCXM7JnycGXMgdfizet98qSgnvEHeox9gcgQjcue2Nb";
-        private const string MRENCLAVE = "4zCXM7JnycGXMgdfizet98qSgnvEHeox9gcgQjcue2Nb";
+        private const string NODE_URL = "wss://sub0.ajuna.network"; //"ws://127.0.0.1:9944";
+        private const string WORKER_URL = "wss://ajuna-02.cluster.securitee.tech"; //"ws://de2b-84-75-48-249.ngrok.io";
+        private const string SHARD = "BdejaJu3iveGGVWNb2RwxNwzPonzCB6oW5Y8xF9QTHM8";
+        private const string MRENCLAVE = "BdejaJu3iveGGVWNb2RwxNwzPonzCB6oW5Y8xF9QTHM8";
 
         private static Random _random = new Random();
 
@@ -76,6 +76,10 @@ namespace Ajuna.Automation
                 case ModeType.Play:
                     await PlayAsync(account, token);
                     break;
+
+                case ModeType.WorkerTest:
+                    await WorkerTestPlayAsync(account, token);
+                    break;
             }
         }
 
@@ -101,6 +105,22 @@ namespace Ajuna.Automation
 
             var client = new BalanceWorkerBot(workerClient);
             await client.RunAsync(token);
+        }
+
+        private static async Task WorkerTestPlayAsync(Account account, CancellationToken token)
+        {
+            Log.Information("Connecting to: {0}", WORKER_URL);
+
+            var workerClient = new WorkerClient(account, WORKER_URL, SHARD, MRENCLAVE);
+
+            _ = await workerClient.ConnectAsync(false, false, token);
+
+            Log.Information("Is worker connected? {0}", workerClient.IsConnected);
+
+            _ = await workerClient.client.RPCMethodsAsync();
+            
+            _ = await workerClient.DisconnectAsync();
+
         }
 
         private static async Task PlayAsync(Account account, CancellationToken token)

@@ -511,7 +511,7 @@ namespace Ajuna.NetApi
 
         public async Task<byte[]> RPCMethodsAsync()
         {
-            var result = await InvokeAsync<string>("rpc_methods", null, CancellationToken.None);
+            var result = await InvokeAsync<object>("rpc_methods", null, CancellationToken.None);
             Console.WriteLine($"-----------> {result}");
 
             //var rpcReturnValue = new RpcReturnValue();

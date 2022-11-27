@@ -100,7 +100,7 @@ namespace Ajuna.Automation
                     break;
 
                 case NodeState.Finished:
-                    var downTime = 10000;
+                    var downTime = 60000;
                     Log.Information("Downtime for {value} sec.", (double)downTime / 1000);
                     Thread.Sleep(downTime);
                     break;

@@ -7,5 +7,6 @@
         BalanceOnWorker,
         RandomAccounts,
         BalanceOnNode,
+        WorkerTest,
     }
 }
