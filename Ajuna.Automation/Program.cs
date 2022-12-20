@@ -15,8 +15,14 @@ namespace Ajuna.Automation
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
         private const string WORKER_URL = "ws://991f-89-210-82-26.ngrok.io";
-        private const string SHARD = "AzGcagSmx9ThfFV1D5xwDdnEQfHEGAz5T8A3ivB1FAMx";
         private const string MRENCLAVE = "AzGcagSmx9ThfFV1D5xwDdnEQfHEGAz5T8A3ivB1FAMx";
+        // SHARD IS EQUAL TO MRENCLAVE 
+        private const string SHARD = "AzGcagSmx9ThfFV1D5xwDdnEQfHEGAz5T8A3ivB1FAMx";
+
+        // Set to true for Stress Testing 
+        private static bool IS_STRESS_TESTING = false;
+
+        private const int MAX_NUMBER_OF_CONCURRENT_BOTS = 1000;
 
         private static async Task Main(string[] args)
         {
@@ -39,20 +45,28 @@ namespace Ajuna.Automation
 
             try
             {
-                var ps1 = new PlayService(NODE_URL, WORKER_URL, MRENCLAVE, SHARD);
-                await ps1.PlayAsync(Client.RandomAccount(),cts.Token);
-                return;
-                
                 Console.WriteLine("Press Ctrl+C to end.");
+
+                // Play as a single bot
+                if (!IS_STRESS_TESTING)
+                {
+                    var playService = new PlayService(NODE_URL, WORKER_URL, MRENCLAVE, SHARD);
+                    await playService.PlayAsync(Client.RandomAccount(),cts.Token);
+                    return;    
+                }
                 
+                // Fire up different bots for stress testing
                 var botTasks = new List<Task>();
-                ShowNumberOfActiveBots(botTasks);
                 
+                // Show number of active bots every 20 seconds 
+                ShowNumberOfActiveBotsAsync(botTasks); 
+                
+                // Number of bots to fire up at once before taking a short break
                 var batchNumber = 12;
                 var currentBatchNumber = 0;
                 
                 
-                for (int i = 0; i < 350; i++)
+                for (int i = 0; i < MAX_NUMBER_OF_CONCURRENT_BOTS; i++)
                 {
                     var ps = new PlayService(NODE_URL, WORKER_URL, MRENCLAVE, SHARD);
                     botTasks.Add(ps.PlayAsync(Client.RandomAccount(),cts.Token));
@@ -70,10 +84,6 @@ namespace Ajuna.Automation
                 }
 
                 Task.WaitAll(botTasks.ToArray());
-                
-                 
-                // await MainAsync(cts.Token);
-                // return;
             }
             catch (OperationCanceledException)
             {
@@ -84,11 +94,11 @@ namespace Ajuna.Automation
             Log.CloseAndFlush();
         }
 
-        private static async Task ShowNumberOfActiveBots(List<Task> tasks)
+        private static async Task ShowNumberOfActiveBotsAsync(List<Task> tasks)
         {
             while (true)
             {
-                Log.Information("{text} {number}","Number of active bots is ", tasks.Count);
+                Log.Information("{Text} {Number}","Number of active bots is ", tasks.Count);
                 await Task.Delay(TimeSpan.FromSeconds(20));
             }
         }
