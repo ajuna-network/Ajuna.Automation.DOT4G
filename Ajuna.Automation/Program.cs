@@ -13,9 +13,9 @@ namespace Ajuna.Automation
     partial class Program
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://bac8e33fd98e.ngrok.io";
-        private const string SHARD = "4zCXM7JnycGXMgdfizet98qSgnvEHeox9gcgQjcue2Nb";
-        private const string MRENCLAVE = "4zCXM7JnycGXMgdfizet98qSgnvEHeox9gcgQjcue2Nb";
+        private const string WORKER_URL = "ws://07f0-84-75-48-249.ngrok.io";
+        private const string SHARD = "fWhemVsTqYKR3Zaik3EX5Kt52Zw9D1Sn7wymv43uPi6";
+        private const string MRENCLAVE = "fWhemVsTqYKR3Zaik3EX5Kt52Zw9D1Sn7wymv43uPi6";
 
         private static Random _random = new Random();
 
