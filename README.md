@@ -4,6 +4,8 @@
 
 You can fire up two or more bots that play against each other. 
 
+A video of how it works can be found [here](https://www.loom.com/share/f3afe398aeac4a0ab239a122ea94d0a0).
+
 If you want to try it out, here is what you will need the following:
 
 ### Setting up the Ajuna Node and the Trusted Execution Environment
