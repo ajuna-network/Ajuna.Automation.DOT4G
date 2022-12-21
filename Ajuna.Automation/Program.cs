@@ -14,15 +14,14 @@ namespace Ajuna.Automation
     partial class Program
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://991f-89-210-82-26.ngrok.io";
+        private const string WORKER_URL = "ws://8826-89-210-82-26.ngrok.io";
         private const string MRENCLAVE = "AzGcagSmx9ThfFV1D5xwDdnEQfHEGAz5T8A3ivB1FAMx";
         // SHARD IS EQUAL TO MRENCLAVE 
         private const string SHARD = "AzGcagSmx9ThfFV1D5xwDdnEQfHEGAz5T8A3ivB1FAMx";
 
         // Set to true for Stress Testing 
-        private static bool IS_STRESS_TESTING = false;
-
-        private const int MAX_NUMBER_OF_CONCURRENT_BOTS = 1000;
+        private static bool IS_STRESS_TESTING = true;
+        private const int MAX_NUMBER_OF_CONCURRENT_BOTS = 25;
 
         private static async Task Main(string[] args)
         {

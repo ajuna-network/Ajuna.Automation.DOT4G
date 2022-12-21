@@ -60,6 +60,16 @@ Once you have this info, you will have to replace it in `Program.cs`:
  private const string MRENCLAVE = "AzGcagSmx9ThfFV1D5xwDdnEQfHEGAz5T8A3ivB1FAMx";
  ```
 
+There is the option of starting a single bot to play or multiple using the following two parameters in `Program.cs`:
+
+```batchfile
+// Set to true for Stress Testing
+ private static bool IS_STRESS_TESTING = true;
+ // Sets the maximum number of concurrent bots to be started
+ private const int MAX_NUMBER_OF_CONCURRENT_BOTS = 25;
+ ```
+
+
 Now, we have everything we need to launch multiple bots to play.
 
 
