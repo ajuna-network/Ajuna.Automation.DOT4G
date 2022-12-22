@@ -1,5 +1,6 @@
-﻿using Ajuna.NetApi.Model.Dot4gravity;
-using Ajuna.NetApiExt.Model.AjunaWorker.Dot4G;
+﻿using Ajuna.NetApiExt.Model.AjunaWorker.Dot4G;
+using AjunaNET.NetApiExt.Generated.Model.dot4gravity;
+using AjunaNET.NetApiExt.Generated.Model.pallet_ajuna_board.types;
 
 namespace Ajuna.Automation.AI
 {

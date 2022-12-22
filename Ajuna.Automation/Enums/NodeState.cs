@@ -7,7 +7,6 @@
         Faucet,
         Queue,
         Players,
-        Worker,
         Play,
         Wait,
         Finished,

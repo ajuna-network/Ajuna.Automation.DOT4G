@@ -1,19 +1,12 @@
-﻿using Ajuna.NetApi;
-using Ajuna.NetApi.Model.AjunaCommon;
-using Ajuna.NetApi.Model.Extrinsics;
-using Ajuna.NetApi.Model.FrameSystem;
-using Ajuna.NetApi.Model.PalletBalances;
-using Ajuna.NetApi.Model.PalletGameRegistry;
-using Ajuna.NetApi.Model.Rpc;
-using Ajuna.NetApi.Model.SpCore;
-using Ajuna.NetApi.Model.SpRuntime;
-using Ajuna.NetApi.Model.Types;
-using Ajuna.NetApi.Model.Types.Base;
-using Ajuna.NetApi.Model.Types.Primitive;
-using Schnorrkel.Keys;
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Ajuna.NetApi;
+using Ajuna.NetApi.Model.Extrinsics;
+using Ajuna.NetApi.Model.Rpc;
+using Ajuna.NetApi.Model.Types;
+using AjunaNET.NetApiExt.Generated;
+using Schnorrkel.Keys;
 
 namespace Ajuna.Automation.Model
 {
@@ -24,16 +17,21 @@ namespace Ajuna.Automation.Model
 
         public Account Account { get; set; }
 
+        public Properties Properties { internal get; set; }
+
         public ExtrinsicManager ExtrinsicManger { get; }
 
         internal readonly SubstrateClientExt client;
 
         public bool IsConnected => client.IsConnected;
 
+        public string Address(bool squezzed = true) => squezzed ? $"{Account.Value.Substring(0, 5)}...{Account.Value.Substring(Account.Value.Length - 5)}" : Account.Value;
+
         public Client(Account account, string url)
         {
             Account = account;
-            client = new SubstrateClientExt(new Uri(url));
+            client = new SubstrateClientExt(new Uri(url),
+                ChargeAssetTxPayment.Default());
 
             ExtrinsicManger = new ExtrinsicManager(60);
         }
@@ -42,9 +40,10 @@ namespace Ajuna.Automation.Model
         {
             if (!IsConnected)
             {
-                client.RPCDelayed = false;
                 await client.ConnectAsync(useMetadata, standardSubstrate, token);
             }
+
+            Properties = await client.System.PropertiesAsync(token);
 
             return IsConnected;
         }
@@ -60,9 +59,9 @@ namespace Ajuna.Automation.Model
             return true;
         }
 
-        public static Account RandomAccount()
+        public static Account RandomAccount(int seed = 0)
         {
-            Random random = new Random();
+            var random = seed > 0 ? new Random(seed) : new Random();
             var randomBytes = new byte[16];
             random.NextBytes(randomBytes);
             var mnemonic = string.Join(' ', Mnemonic.MnemonicFromEntropy(randomBytes, Mnemonic.BIP39Wordlist.English));

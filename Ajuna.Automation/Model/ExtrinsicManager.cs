@@ -1,8 +1,8 @@
-﻿using Ajuna.NetApi.Model.Rpc;
-using Serilog;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Ajuna.NetApi.Model.Rpc;
+using Serilog;
 
 namespace Ajuna.Automation.Model
 {
@@ -40,7 +40,6 @@ namespace Ajuna.Automation.Model
             LastUpdated = DateTime.Now;
             State = state;
         }
-
     }
 
     public class ExtrinsicManager

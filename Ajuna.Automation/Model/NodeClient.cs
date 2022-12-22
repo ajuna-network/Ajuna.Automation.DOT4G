@@ -1,28 +1,36 @@
-﻿using Ajuna.NetApi;
-using Ajuna.NetApi.Model.AjunaCommon;
+﻿using System;
+using System.Linq;
+using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
+using Ajuna.NetApi;
 using Ajuna.NetApi.Model.Extrinsics;
-using Ajuna.NetApi.Model.FrameSystem;
-using Ajuna.NetApi.Model.PalletBalances;
-using Ajuna.NetApi.Model.PalletGameRegistry;
-using Ajuna.NetApi.Model.SpCore;
-using Ajuna.NetApi.Model.SpRuntime;
 using Ajuna.NetApi.Model.Types;
 using Ajuna.NetApi.Model.Types.Base;
 using Ajuna.NetApi.Model.Types.Primitive;
-using Schnorrkel.Keys;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using AjunaNET.NetApiExt.Generated.Model.dot4gravity;
+using AjunaNET.NetApiExt.Generated.Model.frame_system;
+using AjunaNET.NetApiExt.Generated.Model.pallet_ajuna_board.dot4gravity;
+using AjunaNET.NetApiExt.Generated.Model.pallet_ajuna_board.types;
+using AjunaNET.NetApiExt.Generated.Model.sp_core.crypto;
+using AjunaNET.NetApiExt.Generated.Model.sp_runtime.multiaddress;
+using AjunaNET.NetApiExt.Generated.Storage;
+using AjunaNET.NetApiExt.Generated.Types.Base;
+using Newtonsoft.Json.Linq;
 
 namespace Ajuna.Automation.Model
 {
     public class NodeClient : Client
     {
-        public NodeClient(Account account, string url) : base(account, url) { }
+        public BigInteger Token(uint amount) =>new(amount * Math.Pow(10, Properties.TokenDecimals));
 
-        public async Task<AccountInfo?> GetBalanceNodeAsync(bool wait, CancellationToken token)
+        public NodeClient(Account account, string url) : base(account, url)
         {
-            if (!IsConnected || (wait && ExtrinsicManger.Running.Any()))
+        }
+
+        public async Task<AccountInfo?> GetAccountInfoAsync(CancellationToken token)
+        {
+            if (!IsConnected)
             {
                 return null;
             }
@@ -30,42 +38,21 @@ namespace Ajuna.Automation.Model
             var account32 = new AccountId32();
             account32.Create(Utils.GetPublicKeyFrom(Account.Value));
 
-            return await client.SystemStorage.Account(account32, token);
+            var answer = await client.SystemStorage.Account(account32, token);
+            return answer.Bytes != null ? answer : null;
         }
 
-        public async Task<bool> FaucetAsync(CancellationToken token)
+        public async Task<bool> FaucetAsync(BigInteger amount,CancellationToken token)
         {
-            if (!IsConnected || ExtrinsicManger.Running.Any())
-            {
-                return false;
-            }
-
-            var accountAlice = new AccountId32();
-            accountAlice.Create(Utils.GetPublicKeyFrom(Alice.Value));
-
-            var account32 = new AccountId32();
-            account32.Create(Utils.GetPublicKeyFrom(Account.Value));
-
-            var multiAddress = new EnumMultiAddress();
-            multiAddress.Create(MultiAddress.Id, account32);
-
-            var amount = new BaseCom<U128>();
-            amount.Create(1100000000000);
-
-            var extrinsic = BalancesCalls.Transfer(multiAddress, amount);
-            var charge = new ChargeAssetTxPayment(0, 0);
-
-            var subscription = await client.Author.SubmitAndWatchExtrinsicAsync(ExtrinsicManger.ActionExtrinsicUpdate, extrinsic, Alice, charge, 64, token);
-            if (subscription == null)
-            {
-                return false;
-            }
-
-            ExtrinsicManger.Add(subscription, "Faucet");
-            return true;
+            return await SendAsync(Alice, Account, amount, 1, token);
         }
 
-        public async Task<bool> SendAsync(Account to, uint amount, int maxRunning, CancellationToken token)
+        public async Task<bool> SendAsync(Account to, BigInteger amount, int maxRunning, CancellationToken token)
+        {
+            return await SendAsync(Alice, to, amount, maxRunning, token);
+        }
+
+        public async Task<bool> SendAsync(Account from, Account to, BigInteger amount, int maxRunning, CancellationToken token)
         {
             if (!IsConnected || ExtrinsicManger.Running.Count() >= maxRunning)
             {
@@ -84,7 +71,7 @@ namespace Ajuna.Automation.Model
             var extrinsic = BalancesCalls.Transfer(multiAddress, balance);
             var charge = new ChargeAssetTxPayment(0, 0);
 
-            var subscription = await client.Author.SubmitAndWatchExtrinsicAsync(ExtrinsicManger.ActionExtrinsicUpdate, extrinsic, Account, charge, 64, token);
+            var subscription = await client.Author.SubmitAndWatchExtrinsicAsync(ExtrinsicManger.ActionExtrinsicUpdate, extrinsic, from, charge, 64, token);
             if (subscription == null)
             {
                 return false;
@@ -94,6 +81,43 @@ namespace Ajuna.Automation.Model
             return true;
         }
 
+        public async Task<U32?> GetNextBoardIdAsync(CancellationToken token)
+        {
+            if (!IsConnected || ExtrinsicManger.Running.Any())
+            {
+                return null;
+            }
+
+            var answer = await client.AjunaBoardStorage.NextBoardId(token);
+            return answer.Bytes != null ? answer : null;
+        }
+
+        public async Task<BoardGame?> GetBoardGamesAsync(U32 boardGameId, CancellationToken token)
+        {
+            if (!IsConnected || ExtrinsicManger.Running.Any())
+            {
+                return null;
+            }
+
+            var answer = await client.AjunaBoardStorage.BoardGames(boardGameId, token);
+            return answer.Bytes != null ? answer : null;
+        }
+
+        public async Task<U32?> GetPlayerBoardsAsync(CancellationToken token)
+        {
+            if (!IsConnected || ExtrinsicManger.Running.Any())
+            {
+                return null;
+            }
+
+            var account32 = new AccountId32();
+            account32.Create(Utils.GetPublicKeyFrom(Account.Value));
+
+            var answer = await client.AjunaBoardStorage.PlayerBoards(account32, token);
+            return answer.Bytes != null ? answer : null;
+        }
+
+
         public async Task<bool> QueueAsync(CancellationToken token)
         {
             if (!IsConnected || ExtrinsicManger.Running.Any())
@@ -101,7 +125,7 @@ namespace Ajuna.Automation.Model
                 return false;
             }
 
-            var extrinsic = GameRegistryCalls.Queue();
+            var extrinsic = AjunaBoardCalls.Queue();
             var charge = new ChargeAssetTxPayment(0, 0);
 
             var subscription = await client.Author.SubmitAndWatchExtrinsicAsync(ExtrinsicManger.ActionExtrinsicUpdate, extrinsic, Account, charge, 64, token);
@@ -111,6 +135,57 @@ namespace Ajuna.Automation.Model
             }
 
             ExtrinsicManger.Add(subscription, "Queue");
+            return true;
+        }
+
+        public async Task<bool> BombAsync(U8 col, U8 row, CancellationToken token)
+        {
+            if (!IsConnected || ExtrinsicManger.Running.Any())
+            {
+                return false;
+            }
+
+            var enumTurn = new EnumTurn();
+            var bombCoords = new Coordinates();
+            bombCoords.Col = col;
+            bombCoords.Row = row;
+            enumTurn.Create(Turn.DropBomb, bombCoords);
+
+            var extrinsic = AjunaBoardCalls.Play(enumTurn);
+
+            var subscription = await client.Author.SubmitAndWatchExtrinsicAsync(ExtrinsicManger.ActionExtrinsicUpdate, extrinsic, Account, ChargeAssetTxPayment.Default(), 64, token);
+            if (subscription == null)
+            {
+                return false;
+            }
+
+            ExtrinsicManger.Add(subscription, "Bomb");
+            return true;
+        }
+
+        public async Task<bool> StoneAsync(Side side, U8 column, CancellationToken token)
+        {
+            if (!IsConnected || ExtrinsicManger.Running.Any())
+            {
+                return false;
+            }
+
+            var enumTurn = new EnumTurn();
+            var stoneCoords = new BaseTuple<EnumSide, U8>();
+            var enumSide = new EnumSide();
+            enumSide.Create(side);
+            stoneCoords.Create(enumSide, column);
+            enumTurn.Create(Turn.DropStone, stoneCoords);
+
+            var extrinsic = AjunaBoardCalls.Play(enumTurn);
+
+            var subscription = await client.Author.SubmitAndWatchExtrinsicAsync(ExtrinsicManger.ActionExtrinsicUpdate, extrinsic, Account, ChargeAssetTxPayment.Default(), 64, token);
+            if (subscription == null)
+            {
+                return false;
+            }
+
+            ExtrinsicManger.Add(subscription, "Stone");
             return true;
         }
 
@@ -124,32 +199,8 @@ namespace Ajuna.Automation.Model
             var account32 = new AccountId32();
             account32.Create(Utils.GetPublicKeyFrom(Account.Value));
 
-            return await client.MatchmakerStorage.PlayerQueue(account32, token);
+            var answer = await client.AjunaMatchmakerStorage.PlayerQueue(account32, token);
+            return answer.Bytes != null ? answer : null;
         }
-
-        public async Task<U32?> GetRunnerIdAsync(CancellationToken token)
-        {
-
-            if (!IsConnected || ExtrinsicManger.Running.Any())
-            {
-                return null;
-            }
-
-            var account = new AccountId32();
-            account.Create(Utils.GetPublicKeyFrom(Account.Value));
-
-            return await client.GameRegistryStorage.Players(account, token);
-        }
-
-        public async Task<EnumRunnerState> GetRunnerStateAsync(U32 registerId, CancellationToken token)
-        {
-            if (!IsConnected || ExtrinsicManger.Running.Any())
-            {
-                return null;
-            }
-
-            return await client.RunnerStorage.Runners(registerId, token);
-        }
-
     }
 }

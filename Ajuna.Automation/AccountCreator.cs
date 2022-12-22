@@ -12,14 +12,14 @@ namespace Ajuna.Automation
 {
     internal class AccountBot
     {
-        private NodeClient _nodeClient;
+        private NodeClient _client;
 
         private readonly Dictionary<string, long[]> _tracker;
         private readonly Stopwatch _stopwatch;
 
         public AccountBot(NodeClient nodeClient)
         {
-            _nodeClient = nodeClient;
+            _client = nodeClient;
             _tracker = new Dictionary<string, long[]>();
             _stopwatch = new Stopwatch();
         }
@@ -38,12 +38,12 @@ namespace Ajuna.Automation
         private async Task<NodeState> GetNodeStateAsync(NodeState nodeState, CancellationToken token)
         {
             // Connect
-            if (!_nodeClient.IsConnected)
+            if (!_client.IsConnected)
             {
                 return ChangeState(nodeState, NodeState.Connect);
             }
 
-            var accountInfo = await _nodeClient.GetBalanceNodeAsync(true, token);
+            var accountInfo = await _client.GetAccountInfoAsync(token);
 
             // Faucet
             if (accountInfo == null || accountInfo.Data == null || accountInfo.Data.Free.Value < 1000000000000)
@@ -65,11 +65,11 @@ namespace Ajuna.Automation
             switch (nodeState)
             {
                 case NodeState.Connect:
-                    _ = await _nodeClient.ConnectAsync(false, true, token);
+                    _ = await _client.ConnectAsync(false, true, token);
                     break;
 
                 case NodeState.Faucet:
-                    if (await _nodeClient.FaucetAsync(token))
+                    if (await _client.FaucetAsync(_client.Token(1000), token))
                     {
                         WaitOnExtrinsic();
                     }
@@ -78,7 +78,7 @@ namespace Ajuna.Automation
                 case NodeState.Play:
                     var account = Client.RandomAccount();
                     Log.Information("New Account {address} generated", account.Value);
-                    _nodeClient.Account = account;
+                    _client.Account = account;
                     Thread.Sleep(500);
                     break;
 
@@ -89,7 +89,7 @@ namespace Ajuna.Automation
                     break;
 
                 case NodeState.Disconnect:
-                    _ = await _nodeClient.DisconnectAsync();
+                    _ = await _client.DisconnectAsync();
                     break;
 
                 default:
@@ -100,14 +100,14 @@ namespace Ajuna.Automation
         private void WaitOnExtrinsic()
         {
             // wait on extrinsic
-            var running = _nodeClient.ExtrinsicManger.Running;
+            var running = _client.ExtrinsicManger.Running;
             if (running.Any())
             {
                 Log.Debug("Waiting on {count} extrinsic proccesed!", running.Count());
                 while (running.Any())
                 {
                     Thread.Sleep(1000);
-                    running = _nodeClient.ExtrinsicManger.Running;
+                    running = _client.ExtrinsicManger.Running;
                 }
                 Log.Debug("All extrinsic proccessed!");
             }

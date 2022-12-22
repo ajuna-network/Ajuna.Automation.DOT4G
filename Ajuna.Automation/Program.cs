@@ -1,7 +1,6 @@
 ﻿using Ajuna.Automation.AI;
 using Ajuna.Automation.Enums;
 using Ajuna.Automation.Model;
-using Ajuna.NetApi;
 using Ajuna.NetApi.Model.Types;
 using Serilog;
 using System;
@@ -10,12 +9,9 @@ using System.Threading.Tasks;
 
 namespace Ajuna.Automation
 {
-    partial class Program
+    public class Program
     {
         private const string NODE_URL = "ws://127.0.0.1:9944";
-        private const string WORKER_URL = "ws://07f0-84-75-48-249.ngrok.io";
-        private const string SHARD = "fWhemVsTqYKR3Zaik3EX5Kt52Zw9D1Sn7wymv43uPi6";
-        private const string MRENCLAVE = "fWhemVsTqYKR3Zaik3EX5Kt52Zw9D1Sn7wymv43uPi6";
 
         private static Random _random = new Random();
 
@@ -69,10 +65,6 @@ namespace Ajuna.Automation
                     await BalanceNodeStressAsync(account, token);
                     break;
 
-                case ModeType.BalanceOnWorker:
-                    await BalanceWorkerStressAsync(account, token);
-                    break;
-
                 case ModeType.Play:
                     await PlayAsync(account, token);
                     break;
@@ -95,22 +87,13 @@ namespace Ajuna.Automation
             await client.RunAsync(token);
         }
 
-        private static async Task BalanceWorkerStressAsync(Account account, CancellationToken token)
-        {
-            var workerClient = new WorkerClient(account, WORKER_URL, SHARD, MRENCLAVE);
-
-            var client = new BalanceWorkerBot(workerClient);
-            await client.RunAsync(token);
-        }
 
         private static async Task PlayAsync(Account account, CancellationToken token)
         {
             var nodeClient = new NodeClient(account, NODE_URL);
-            var workerClient = new WorkerClient(account, WORKER_URL, SHARD, MRENCLAVE);
 
-            var logic = new StraightAI();
+            var client = new PlayBot(nodeClient, new StraightAI());
 
-            var client = new PlayBot(nodeClient, workerClient, logic);
             await client.RunAsync(token);
         }
     }

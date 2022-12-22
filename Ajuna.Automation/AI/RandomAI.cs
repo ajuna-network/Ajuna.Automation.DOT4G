@@ -1,12 +1,12 @@
-﻿using Ajuna.NetApi.Model.Dot4gravity;
+﻿using System;
 using Ajuna.NetApiExt.Model.AjunaWorker.Dot4G;
-using System;
+using AjunaNET.NetApiExt.Generated.Model.dot4gravity;
 
 namespace Ajuna.Automation.AI
 {
     public class RandomAI : IBotAI
     {
-        private Random _random;
+        private readonly Random _random;
 
         public RandomAI()
         {
